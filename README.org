@@ -1,0 +1,73 @@
+#+title: ETCC - an Emacs TwitCasting Client
+#+author: Tokuya Kameshima
+
+* About ETCC mode
+
+~ETCC~ is a major mode to view [[https://twitcasting.tv/][TwitCasting]] live and movies.
+
+* Getting started
+** Emacs Lisp Packages Requirement
+- request
+- simple-httpd
+- volatile-highlights (optional)
+
+** External Program Requirement:
+- ffmpeg --- to download recorded movie file and HLS
+- mplayer --- to play HLS
+
+** Download and put etcc.el to a directory in `load-path'.
+The latest version of =etcc.el= is available from:
+https://github.com/kametoku/etcc
+
+** Create your TwitCasting App from the developer page
+1. Go to [[https://ssl.twitcasting.tv/developer.php][TwitCasting developer page]].
+2. Register your App with the followng setting:
+   - Name: any
+   - Description: any
+   - Callback URL: the same value as =etcc-auth-redirect-url=.
+     (default: http://localhost:12399/etcc-auth-callback)
+   - Scope: "Read and Write" or "Read, Write and Broadcast"
+3. Note "ClientID" and "ClientSecret" from your App created.
+
+** Edit your ~/.emacs
+1. Configure ETCC with the above values.
+   Write the following lines to your =~/.emacs= file
+   #+BEGIN_SRC emacs-lisp
+     (require 'etcc)
+     (setq etcc-auth-client-id "ClientID")
+     (setq etcc-auth-state "ClientSecret")
+   #+END_SRC
+
+* Usage
+** Authentication
+- type =M-x etcc-auth= to get yourself authorized.
+
+** View live/movie
+- Type =M-x etcc-view-movie-from-url= followed by TwitCasting live/movie
+  URL to view movie form the URL.
+- Type =M-x etcc-view-live= followed by the user ID to view user's live.
+- type =M-x etcc-view-movie= followed by the movie ID to view recorded
+  movie.
+
+** In an ETCC buffer
+- type =C-c C-p= to start playing the movie.
+- type =C-c C-i= to view the movie info.
+- enter your comment after the prompt and type =C-c C-c= to post comment.
+- type =C-c C-q= to quit viewing movie.
+- type =M-x describe-mode= for more info.
+
+* Screen Shots
+[[./etcc-screenshot.png]]
+
+#+STARTUP: overview indent inlineimage
+#+OPTIONS: ':nil *:t -:t ::t <:t H:4 \n:nil ^:{} arch:headline
+#+OPTIONS: author:nil c:nil creator:nil d:(not "LOGBOOK") date:t e:t
+#+OPTIONS: email:nil f:t inline:t num:nil p:nil pri:nil prop:nil
+#+OPTIONS: stat:t tags:nil tasks:t tex:t timestamp:t title:t toc:t
+#+OPTIONS: todo:t |:t
+#+SELECT_TAGS: export
+#+EXCLUDE_TAGS: noexport
+
+# Local Variables:
+# coding: utf-8
+# End:
