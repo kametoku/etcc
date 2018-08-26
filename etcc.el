@@ -90,7 +90,12 @@
   :type 'hook)
 
 (defcustom etcc-display-movie-info-hook nil
-  "Hook called in `etcc-display-movie-info-mode'."
+  "Hook called in `etcc-display-movie-info'."
+  :group 'etcc
+  :type 'hook)
+
+(defcustom etcc-display-user-info-hook nil
+  "Hook called in `etcc-display-user-info'."
   :group 'etcc
   :type 'hook)
 
@@ -195,6 +200,11 @@ The second group matched represents the movie id."
   :group 'etcc
   :type 'string)
 
+(defcustom etcc-user-info-buffer-name "*ETCC-user-info*"
+  "The buffer name to show the user info."
+  :group 'etcc
+  :type 'string)
+
 (defcustom etcc-prompt-function 'etcc-prompt
   "A function that returns the etcc comment prompt string."
   :group 'etcc
@@ -214,6 +224,27 @@ The second group matched represents the movie id."
   "Program name of ffmpeg to download HLS."
   :group 'etcc
   :type 'string)
+
+(defcustom etcc-speed-commands
+  `((" " . scroll-up-command)
+    (,(kbd "<DEL>") . scroll-down-command)
+    ("<" . etcc-goto-last-comment)
+    (">" . etcc-goto-first-comment)
+;;     ("<" . etcc-beginning-of-buffer)
+;;     (">" . end-of-buffer)
+    ("?" . describe-mode)
+    ("@" . etcc-mention)
+    ("I" . etcc-display-movie-info)
+    ("i" . etcc-display-user-info-with-image)
+    ("n" . etcc-next-comment)
+    ("p" . etcc-previous-comment))
+  "Alist of the key and command that is run if the position is read only.
+Each element of alist is in (KEY . COMMAND) form.
+In a read-only position, pressing KEY calls COMMAND interactively.
+Otherwise, call the function globally bound to KEY.
+KEY must be a single character string."
+  :group 'etcc
+  :type 'list)
 
 (defvar etcc-token-type nil)
 (defvar etcc-access-token nil)
@@ -752,6 +783,7 @@ Note: USER-ID could be a user ID or a screen ID."
   (define-key etcc-mode-map "\C-c\C-c" 'etcc-post-comment)
   (define-key etcc-mode-map "\C-c\C-d" 'etcc-download)
   (define-key etcc-mode-map "\C-c\C-i" 'etcc-display-movie-info)
+  (define-key etcc-mode-map "\C-c\C-j" 'etcc-goto-last-comment)
   (define-key etcc-mode-map "\C-c\C-k" 'etcc-kill-comment)
   (define-key etcc-mode-map "\C-c\C-l" 'etcc-reload)
   (define-key etcc-mode-map "\C-c\C-o" 'etcc-open-link)
@@ -762,11 +794,22 @@ Note: USER-ID could be a user ID or a screen ID."
   (define-key etcc-mode-map "\C-c\C-t" 'etcc-browse-thumbnail)
   (define-key etcc-mode-map "\C-c\C-u" 'etcc-kill-comment)
   (define-key etcc-mode-map "\C-c\C-x" 'etcc-stop-download)
+  (define-key etcc-mode-map "\C-c@" 'etcc-mention)
+  (define-key etcc-mode-map "\C-c?" 'describe-mode)
+  (define-key etcc-mode-map "\C-c<" 'etcc-goto-last-comment)
+  (define-key etcc-mode-map "\C-c>" 'etcc-goto-first-comment)
   (define-key etcc-mode-map "\C-m" 'etcc-post-comment)
-  (define-key etcc-mode-map "<S-return>" 'newline)
+  (define-key etcc-mode-map (kbd "<S-RET>") 'newline)
+  (define-key etcc-mode-map (kbd "<M-RET>") 'etcc-post-comment)
   (define-key etcc-mode-map "\M-<" 'etcc-beginning-of-buffer)
   (define-key etcc-mode-map "\C-\M-n" 'etcc-next-comment)
-  (define-key etcc-mode-map "\C-\M-p" 'etcc-previous-comment))
+  (define-key etcc-mode-map "\C-\M-p" 'etcc-previous-comment)
+  ;; bind keys from " "(32) to "<DEL>"(127) to `etcc-speed-command'
+  (let ((char 32))
+    (while (< char 128)
+      (let ((key (make-string 1 char)))
+        (define-key etcc-mode-map key 'etcc-speed-command))
+      (setq char (1+ char)))))
 
 (defun etcc-mode ()
   "Major mode for Emacs Twitcasting Client
@@ -871,9 +914,9 @@ Note: USER-ID could be a user ID or a screen ID."
   (concat 
 ;;    (etcc/fontify-string (concat (etcc-user-name etcc-user) "")
    (etcc/fontify-string (copy-sequence (etcc-user-name etcc-user))
-                        font-lock-function-name-face)
+                        font-lock-function-name-face nil 'etcc-user etcc-user)
    (etcc/fontify-string (concat "@" (etcc-user-screen-id etcc-user))
-                        font-lock-constant-face)))
+                        font-lock-constant-face nil 'etcc-user etcc-user)))
 
 (defun etcc/insert-comment (etcc-comment)
   (let* ((id (etcc-comment-id etcc-comment))
@@ -892,12 +935,14 @@ Note: USER-ID could be a user ID or a screen ID."
       (add-text-properties beg (1+ beg)
                            `(etcc-comment-id ,(string-to-number id)
                              etcc-comment-begin t))
-      (cond ((equal (etcc-user-id user)
-                    (etcc-user-id etcc-current-user))
+      (cond ((and (boundp 'etcc-current-user)
+                  (equal (etcc-user-id user)
+                         (etcc-user-id etcc-current-user)))
              (add-face-text-property beg (point)
                                      'etcc-my-comment-face t))
-            ((equal (etcc-user-id user)
-                    (etcc-user-id etcc-broadcaster))
+            ((and (boundp 'etcc-broadcaster)
+                  (equal (etcc-user-id user)
+                         (etcc-user-id etcc-broadcaster)))
              (add-face-text-property beg (point)
                                      'etcc-broadcaster-comment-face t)))
       (add-text-properties beg (point)
@@ -910,23 +955,26 @@ Note: USER-ID could be a user ID or a screen ID."
   "Insert COMMENTS into the current buffer.
 If the volatile-highlights package is installed, the inserted
 comments will be highlighted for a while."
-  (ensure-etcc-buffer
-    (if (fboundp 'vhl/clear-all)
-        (vhl/clear-all))
-    (let ((buffer-undo-list t))
-      (mapc (lambda (comment)
-              (let* ((etcc-comment (make-etcc-comment-from-alist comment))
-                     (comment-id (string-to-number
-                                  (etcc-comment-id etcc-comment))))
-                (let ((beg (point)))
-                  (etcc/insert-comment etcc-comment)
-                  (if (and (not (numberp etcc-comment-offset))
-                           (fboundp 'vhl/add-range))
-                      (vhl/add-range beg (point) nil
-                                     'etcc-volatile-highlights-face)))
-                (setq etcc-last-comment-id
-                      (max etcc-last-comment-id comment-id))))
-            comments))))
+  (if (fboundp 'vhl/clear-all)
+      (vhl/clear-all))
+  (let ((buffer-undo-list t))
+    (mapc (lambda (comment)
+            (let* ((etcc-comment (if (etcc-comment-p comment)
+                                     comment
+                                   (make-etcc-comment-from-alist comment)))
+                   (comment-id (string-to-number
+                                (etcc-comment-id etcc-comment))))
+              (let ((beg (point)))
+                (etcc/insert-comment etcc-comment)
+                (if (and (boundp 'etcc-comment-offset)
+                         (not (numberp etcc-comment-offset))
+                         (fboundp 'vhl/add-range))
+                    (vhl/add-range beg (point) nil
+                                   'etcc-volatile-highlights-face)))
+              (if (boundp 'etcc-last-comment-id)
+                  (setq etcc-last-comment-id
+                        (max etcc-last-comment-id comment-id)))))
+          comments)))
 
 (defun etcc/insert-live-comments (comments)
   "Insert live comments COMMENTS into the current ETCC buffer.
@@ -1203,6 +1251,18 @@ Updater processes are comment updater and movie info updater."
           (insert-image (create-image data nil t)))
       (kill-buffer buffer))))
 
+(defun etcc-insert-alist (alist)
+  (mapc (lambda (elem)
+          (if (stringp elem)
+              (insert (etcc/fontify-string elem 'bold) "\n")
+            (let ((key (car elem))
+                  (value (cdr elem)))
+              (if key
+                  (insert (etcc/fontify-string (concat key ": ") 'bold)
+                          (or value "") "\n")
+                (insert "\n")))))
+        alist))
+
 (defun etcc-display-movie-info (&optional display-thumbnail)
   "Show the movie info in a buffer.
 If DISPLAY-THUMBNAIL is non-nil,
@@ -1227,69 +1287,160 @@ With a ‘C-u C-u’ prefix argument, display the small size thumbnail."
           (etcc/insert-image-from-url thumbnail-url)
           (insert "\n\n")))
       (setq pos (point))
-      (mapc (lambda (elem)
-              (if (stringp elem)
-                  (insert (etcc/fontify-string elem 'bold) "\n")
-                (let ((key (car elem))
-                      (value (cdr elem)))
-                  (if key
-                      (insert (etcc/fontify-string (concat key ": ")
-                                                   'bold)
-                              (or value "") "\n")
-                    (insert "\n")))))
-            `("MOVIE"
-              ("Id" . ,(etcc-movie-id movie))
-              ("User Id" . ,(etcc-movie-user-id movie))
-              ("Title" . ,(etcc-movie-title movie))
-              ("Sub Title" . ,(etcc-movie-subtitle movie))
-              ("Last Owner Comment" . ,(etcc-movie-last-owner-comment movie))
-              ("Category" . ,(etcc-movie-category movie))
-              ("Link" . ,(etcc-movie-link movie))
-              ("Is Live" . ,(if (etcc-movie-is-live movie) "Yes" "No"))
-              ("Is Recorded" . ,(if (etcc-movie-is-recorded movie) "Yes" "No"))
-              ("Comment Count" . ,(number-to-string
-                                   (etcc-movie-comment-count movie)))
-              ("Large Thumbnail" . ,(etcc-movie-large-thumbnail movie))
-              ("Small Thumbnail" . ,(etcc-movie-small-thumbnail movie))
-              ("Country" . ,(etcc-movie-country movie))
-              ("Duration" . ,(etcc/time-string (etcc-movie-duration movie)))
-              ("Created" . ,(format-time-string "%Y/%m/%d %H:%M:%S"
-                                                (etcc-movie-created movie)))
-              ("Is Collabo" . ,(if (etcc-movie-is-collabo movie) "Yes" "No"))
-              ("Is Proteccted" . ,(if (etcc-movie-is-protected movie)
-                                      "Yes" "No"))
-              ("Max View Count" . ,(number-to-string
-                                    (etcc-movie-max-view-count movie)))
-              ("Current View Count" . ,(number-to-string
-                                        (etcc-movie-current-view-count movie)))
-              ("Total View Count" . ,(number-to-string
-                                      (etcc-movie-total-view-count movie)))
-              ("HLS URL" . ,(etcc-movie-hls-url movie))
-              nil
-              "BROADCASTER"
-              ("Id" . ,(etcc-user-id broadcaster))
-              ("Screen Id" . ,(etcc-user-screen-id broadcaster))
-              ("Name" . ,(etcc-user-name broadcaster))
-              ("Image" . ,(etcc-user-image broadcaster))
-              ("Profile" . ,(etcc-user-profile broadcaster))
-              ("Level" . ,(number-to-string (etcc-user-level broadcaster)))
-              ("Last Movie Id" . ,(etcc-user-last-movie-id broadcaster))
-              ("Is Live" . ,(if (etcc-user-is-live broadcaster) "Yes" "No"))
-              ("Supporter Count" . ,(number-to-string
-                                     (etcc-user-supporter-count broadcaster)))
-              ("Supporting Count" . ,(number-to-string
-                                      (etcc-user-supporting-count broadcaster)))
-              nil
-              ("TAGS" . ,(mapconcat (lambda (tag)
-                                      (format "#%s" tag)) tags " "))))
+      (etcc-insert-alist
+       `("MOVIE"
+         ("Id" . ,(etcc-movie-id movie))
+         ("User Id" . ,(etcc-movie-user-id movie))
+         ("Title" . ,(etcc-movie-title movie))
+         ("Sub Title" . ,(etcc-movie-subtitle movie))
+         ("Last Owner Comment" . ,(etcc-movie-last-owner-comment movie))
+         ("Category" . ,(etcc-movie-category movie))
+         ("Link" . ,(etcc-movie-link movie))
+         ("Is Live" . ,(if (etcc-movie-is-live movie) "Yes" "No"))
+         ("Is Recorded" . ,(if (etcc-movie-is-recorded movie) "Yes" "No"))
+         ("Comment Count" . ,(number-to-string
+                              (etcc-movie-comment-count movie)))
+         ("Large Thumbnail" . ,(etcc-movie-large-thumbnail movie))
+         ("Small Thumbnail" . ,(etcc-movie-small-thumbnail movie))
+         ("Country" . ,(etcc-movie-country movie))
+         ("Duration" . ,(etcc/time-string (etcc-movie-duration movie)))
+         ("Created" . ,(format-time-string "%Y/%m/%d %H:%M:%S"
+                                           (etcc-movie-created movie)))
+         ("Is Collabo" . ,(if (etcc-movie-is-collabo movie) "Yes" "No"))
+         ("Is Proteccted" . ,(if (etcc-movie-is-protected movie)
+                                 "Yes" "No"))
+         ("Max View Count" . ,(number-to-string
+                               (etcc-movie-max-view-count movie)))
+         ("Current View Count" . ,(number-to-string
+                                   (etcc-movie-current-view-count movie)))
+         ("Total View Count" . ,(number-to-string
+                                 (etcc-movie-total-view-count movie)))
+         ("HLS URL" . ,(etcc-movie-hls-url movie))
+         nil
+         "BROADCASTER"
+         ("Id" . ,(etcc-user-id broadcaster))
+         ("Screen Id" . ,(etcc-user-screen-id broadcaster))
+         ("Name" . ,(etcc-user-name broadcaster))
+         ("Image" . ,(etcc-user-image broadcaster))
+         ("Profile" . ,(etcc-user-profile broadcaster))
+         ("Level" . ,(number-to-string (etcc-user-level broadcaster)))
+         ("Last Movie Id" . ,(etcc-user-last-movie-id broadcaster))
+         ("Is Live" . ,(if (etcc-user-is-live broadcaster) "Yes" "No"))
+         ("Supporter Count" . ,(number-to-string
+                                (etcc-user-supporter-count broadcaster)))
+         ("Supporting Count" . ,(number-to-string
+                                 (etcc-user-supporting-count broadcaster)))
+         nil
+         ("TAGS" . ,(mapconcat (lambda (tag)
+                                 (format "#%s" tag)) tags " "))))
       (goto-char (point-min))
       (run-hooks 'etcc-display-movie-info-hook)
       (set-buffer-modified-p nil)
       (setq buffer-read-only t)
       (display-buffer buf))))
 
+(defun etcc/filter-comments (pred &optional etcc-buf)
+  "Collect commands that satisfies PRED in the buffer ETCC-BUF
+and return the list of `etcc-command' objects.
+PRED is a function or a lambda express that takes one parameter
+of `etcc-command' object.
+If ETCC-BUF is nil, default to the current buffer."
+  (let (comments)
+    (with-current-buffer (or etcc-buf
+                             (current-buffer))
+      (ensure-etcc-buffer
+        (save-excursion
+          (save-restriction
+            (widen)
+            (goto-char (point-min))
+            (while (not (eobp))
+              (etcc-next-comment 1 t)
+              (let ((comment (get-text-property (point) 'etcc-comment)))
+                (if (and comment
+                         (funcall pred comment))
+                    (add-to-list 'comments comment)))))))
+      comments)))
+
+(defun etcc/insert-user-comments (user-id etcc-buf)
+  "Insert comments posted by USER-ID in the buffer of ETCC-BUFFER.
+If USER-ID is nil, insert all the comments in the current buffer."
+  (let* ((pred (if (not user-id)
+                   'identity            ; pickup all comments
+                 (lambda (comment)
+                   (let ((comment-user-id (etcc-user-id
+                                           (etcc-comment-from-user comment))))
+                     (equal user-id comment-user-id)))))
+         (comments (etcc/filter-comments pred etcc-buf)))
+    (etcc/insert-comments comments)))
+
+(defun etcc/display-user-info (user &optional display-image etcc-buf)
+  "Show the user info USER.
+If DISPLAY-image is non-nil,
+display the user image as well."
+  (let ((buf (get-buffer-create etcc-user-info-buffer-name))
+        pos)
+    (set-buffer buf)
+    (let ((inhibit-read-only t))
+      (erase-buffer))
+    (setq buffer-read-only nil)
+    (let ((image-url (if display-image (etcc-user-image user) "")))
+      (when (> (length image-url) 0)
+        (etcc/insert-image-from-url image-url)
+        (insert "\n")))
+    (setq pos (point))
+    (etcc-insert-alist
+     `(("Id" . ,(etcc-user-id user))
+       ("Screen Id" . ,(etcc-user-screen-id user))
+       ("Name" . ,(etcc-user-name user))
+       ("Image" . ,(etcc-user-image user))
+       ("Profile" . ,(etcc-user-profile user))
+       ("Level" . ,(number-to-string (etcc-user-level user)))
+       ("Last Movie Id" . ,(etcc-user-last-movie-id user))
+       ("Is Live" . ,(if (etcc-user-is-live user) "Yes" "No"))
+       ("Supporter Count" . ,(number-to-string
+                              (etcc-user-supporter-count user)))
+       ("Supporting Count" . ,(number-to-string
+                               (etcc-user-supporting-count user)))))
+    (when etcc-buf
+      (insert "\n")
+      (etcc/insert-user-comments (etcc-user-id user) etcc-buf))
+    (goto-char (point-min))
+    (run-hooks 'etcc-display-user-info-hook)
+    (set-buffer-modified-p nil)
+    (setq buffer-read-only t)
+    (display-buffer buf)))
+
+(defun etcc-user-at (&optional pos)
+  "Return object of `etcc-user' at the position of POS.
+POS defaults to t current position.
+If the 'etcc-user text property is defined at the position,
+return the value of 'etcc-user property.
+If the 'etcc-comment text property is defined at the position,
+return the value of 'etcc-comment-from-user of the comment.
+Otherwise, return the broadcaster of the buffer."
+  (or pos (setq pos (point)))
+  (or (get-text-property pos 'etcc-user)
+      (let ((comment (get-text-property pos 'etcc-comment)))
+        (and comment
+             (etcc-comment-from-user comment)))
+      etcc-broadcaster))
+
+(defun etcc-display-user-info (&optional display-image)
+  "Display the user info at the current point
+with his/her posted comments on the movie.
+If DISPLAY-IMAGE is non-nil, display the user's image, too."
+  (interactive "P")
+  (ensure-etcc-buffer
+    (let ((user (etcc-user-at)))
+      (etcc/display-user-info user display-image (current-buffer)))))
+
+(defun etcc-display-user-info-with-image (&optional no-image)
+  "Invert version of `etcc-display-user-info'."
+  (interactive "P")
+  (etcc-display-user-info (not no-image)))
+
 (defun etcc-browse-thumbnail (&optional small-thumbnail)
-  "Open web browser and show thumbnail of the movie."
+  "Open web browser and display thumbnail of the movie."
   (interactive "P")
   (ensure-etcc-buffer
     (let ((url (if small-thumbnail
@@ -1735,6 +1886,18 @@ Then, the prompt is inserted newly."
           (set-marker etcc-prompt-end (point)))
         (set-buffer-modified-p nil)))))
 
+(defun etcc-mention (&optional arg)
+  "Insert \"@user-screen-id \" at the beginning of the comment
+to reply to the user at the current position."
+  (interactive "P")
+  (ensure-etcc-buffer
+    (let* ((user (etcc-user-at))
+           (user-name (etcc-user-name user))
+           (user-screen-id (etcc-user-screen-id user)))
+      (etcc-beginning-of-buffer)
+      (insert "@" user-screen-id " ")
+      (message "mention to: %s" (etcc/user-string user)))))
+
 (defun etcc-bol ()
   "Go to the beginning of line, then skip the prompt, if any."
   (interactive)
@@ -1747,7 +1910,17 @@ Then, the prompt is inserted newly."
   (beginning-of-buffer)
   (unless arg (etcc-bol)))
 
-(defun etcc-next-comment (&optional arg)
+(defun etcc-goto-last-comment (&optional arg)
+  "Go to the last comment of the movie."
+  (interactive "P")
+  (goto-char etcc-comment-region-beg))
+
+(defun etcc-goto-first-comment (&optional arg)
+  "Go to the first comment of the movie."
+  (interactive "P")
+  (goto-char etcc-comment-region-end))
+
+(defun etcc-next-comment (&optional arg no-error)
   (interactive "^p")
   (or arg (setq arg 1))
   (cond ((> arg 0)
@@ -1758,32 +1931,47 @@ Then, the prompt is inserted newly."
                          (point)))
                   (pos (text-property-any beg (point-max)
                                           'etcc-comment-begin t)))
-             (unless pos (error "no more comment"))
+             (unless pos
+               (if no-error
+                   (progn
+                     (setq pos (point-max))
+                     (setq arg 0))
+                 (error "no more comment")))
              (goto-char pos)
              (setq arg (1- arg)))))
         ((< arg 0)
-         (error "not implemented yet")
-         ;; TODO
-;;          (move-end-of-line nil)
-;;          (while (<= arg 0)
-;;            (let* ((beg (save-excursion
-;;                          (move-beginning-of-line nil)
-;;                          (point)))
-;;                   (pos (text-property-any beg (point)
-;;                                           'etcc-comment-begin t)))
-;;              (if pos
-;;                  (progn
-;;                    (setq arg (1+ arg))
-;;                    (goto-char pos))
-;;                (previous-line nil)
-;;                (move-end-of-line)))))))
-         )))
+         (move-beginning-of-line nil)
+         (while (< arg 0)
+           (unless (re-search-backward "^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]"
+                                       nil t)
+             (if no-error
+                 (progn
+                   (setq pos (point-min))
+                   (setq arg 0))
+               (error "no more comment")))
+           (setq arg (1+ arg))))))
 
 (defun etcc-previous-comment (&optional arg)
   (interactive "^p")
   (or arg (setq arg 1))
   (etcc-next-comment (- arg)))
 
+(defun etcc-speed-command (&optional arg)
+  "If the cursor is at a read-only position and
+the key defined in `etcc-speed-commands' is pressed,
+call the command associated with the key in `etcc-speed-commands' interactively.
+Otherwise, call the command defined in global key binding interactively."
+  (interactive "P")
+  (let* ((kv (this-command-keys-vector))
+         (key (make-string 1 (aref kv (1- (length kv)))))
+         (command (assoc-default key etcc-speed-commands)))
+    (if (and (or (get-text-property (point) 'read-only)
+                 (eobp))
+             command)
+        (progn
+          (setq last-command command)
+          (call-interactively command))
+      (call-interactively (global-key-binding key)))))
 
 (provide 'etcc)
 
