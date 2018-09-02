@@ -11,7 +11,7 @@
 - simple-httpd
 - volatile-highlights (optional)
 
-** External Program Requirement:
+** External Program Requirement
 - ffmpeg --- to download recorded movie file and HLS
 - mplayer --- to play HLS
 
@@ -36,11 +36,21 @@ https://github.com/kametoku/etcc
      (require 'etcc)
      (setq etcc-auth-client-id "ClientID")
      (setq etcc-auth-state "ClientSecret")
+     ;; (add-hook 'etcc-mode-hook 'emojify-mode)
+     ;; (add-hook 'etcc-display-movie-info-hook 'emojify-mode)
+     ;; (add-hook 'etcc-display-user-info-hook 'emojify-mode)
    #+END_SRC
 
 * Usage
 ** Authentication
 - type =M-x etcc-auth= to get yourself authorized.
+
+** search live movies:
+- type "M-x etcc" or "M-x etcc-search-recommend" to list recommend
+  live movies
+- type "M-x etcc-search-new" to list new live movies.
+- type "M-x etcc-search-word" to search live movies with words.
+- type "M-x etcc-search-tag" to search live movies with tags.
 
 ** View live/movie
 - Type =M-x etcc-view-movie-from-url= followed by TwitCasting live/movie
@@ -54,7 +64,7 @@ https://github.com/kametoku/etcc
 - type =C-c C-i= to view the movie info.
 - enter your comment after the prompt and type =C-c C-c= to post comment.
 - type =C-c C-q= to quit viewing movie.
-- type =M-x describe-mode= for more info.
+- type =M-x describe-mode= for more about ETCC mode.
 
 * Screen Shots
 [[./etcc-screenshot.png]]
