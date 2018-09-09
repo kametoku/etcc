@@ -58,8 +58,9 @@
 ;; - type "M-x etcc" or "M-x etcc-search-recommend"
 ;;   to list recommend live movies
 ;; - type "M-x etcc-search-new" to list new live movies.
-;; - type "M-x etcc-search-word" to search live movies with words.
-;; - type "M-x etcc-search-tag" to search live movies with tags.
+;; - type "M-x etcc-search-by-word" to search live movies with words.
+;; - type "M-x etcc-search-by-tag" to search live movies with tags.
+;; - type "M-x etcc-search-by-category" to search live movies with categories.
 ;;
 ;; view live/movie:
 ;; - type "M-x etcc-view-movie-from-url" followed by twitcasting
@@ -74,6 +75,11 @@
 ;; - type "C-c C-i" to view the movie info.
 ;; - enter your comment after the prompt and type "C-c C-c" to post comment.
 ;; - type "C-c C-q" to quit viewing movie.
+;;
+;; Search users and view user info
+;; - type "M-x etcc-search-user" to search user with words.
+;; - type "M-x etcc-view-user" followed by user's id to view the user
+;;   info with ther user's movie list
 
 ;; To debug api interaction with request:
 ;; (setq request-log-level 'debug request-log-buffer-name "*request-log*")
@@ -1705,73 +1711,6 @@ and display them as well"
     (unless no-display
       (display-buffer buf))))
 
-(defvar etcc-user-mode-map nil)
-
-(unless etcc-user-mode-map
-  (setq etcc-user-mode-map (make-sparse-keymap))
-  (define-key etcc-user-mode-map "\C-c\C-i" 'etcc-display-movie-info-at-point)
-  (define-key etcc-user-mode-map "\C-c\C-o" 'etcc-open-link)
-  (define-key etcc-user-mode-map "\C-c\C-t" 'etcc-browse-thumbnail)
-  (define-key etcc-user-mode-map "\C-m" 'etcc-view-movie-at-point)
-  (define-key etcc-user-mode-map (kbd "<DEL>") 'scroll-down-command)
-  (define-key etcc-user-mode-map " " 'scroll-up-command)
-  (define-key etcc-user-mode-map "/" 'etcc-search-live)
-  (define-key etcc-user-mode-map "?" 'describe-mode)
-  (define-key etcc-user-mode-map "B" 'etcc-search-user)
-  (define-key etcc-user-mode-map "C" 'etcc-search-by-category)
-  (define-key etcc-user-mode-map "I" 'etcc-display-movie-info-at-point)
-  (define-key etcc-user-mode-map "L" 'etcc-view-live)
-  (define-key etcc-user-mode-map "M" 'etcc-view-movie)
-  (define-key etcc-user-mode-map "N" 'etcc-search-new)
-  (define-key etcc-user-mode-map "R" 'etcc-search-recommend)
-  (define-key etcc-user-mode-map "S" 'etcc-search-by-word)
-  (define-key etcc-user-mode-map "T" 'etcc-search-by-tag)
-  (define-key etcc-user-mode-map "U" 'etcc-view-from-url)
-  (define-key etcc-user-mode-map "g" 'etcc-user-refresh)
-  (define-key etcc-user-mode-map "n" 'etcc-user-next-movie)
-  (define-key etcc-user-mode-map "p" 'etcc-user-previous-movie)
-  (define-key etcc-user-mode-map "q" 'bury-buffer)
-  (define-key etcc-user-mode-map "s/" 'etcc-search-live)
-  (define-key etcc-user-mode-map "sb" 'etcc-search-user)
-  (define-key etcc-user-mode-map "sn" 'etcc-search-new)
-  (define-key etcc-user-mode-map "sr" 'etcc-search-recommend)
-  (define-key etcc-user-mode-map "ss" 'etcc-search-by-word)
-  (define-key etcc-user-mode-map "st" 'etcc-search-by-tag)
-  (define-key etcc-user-mode-map "su" 'etcc-search-user)
-  (define-key etcc-user-mode-map "sw" 'etcc-search-by-word))
-
-(defun etcc-user-mode ()
-  "Major mode for Emacs Twitcasting Client - view user info and movies
-
-\\{etcc-user-mode-map}"
-  (interactive)
-  (set (make-local-variable 'etcc-broadcaster) nil)
-  (setq major-mode 'etcc-user-mode)
-  (setq mode-name "ETCC-user")
-;;   (make-local-variable 'kill-buffer-hook)
-  (use-local-map etcc-user-mode-map)
-  (run-hooks 'etcc-user-mode-hook))
-
-(defun etcc-user-refresh (&optional no-image)
-  (interactive "P")
-  (let ((user-id (etcc-user-screen-id etcc-broadcaster)))
-    (etcc-view-user user-id no-image)))
-
-(defun etcc-user-next-movie (&optional arg no-error)
-  "Move to the beginning of the next user movie."
-  (interactive "^p")
-  (etcc-next-regexp etcc-user-movie-line-regexp "user movie" arg no-error))
-
-(defun etcc-user-previous-movie (&optional arg)
-  "Move to the beginning of the previous user movie."
-  (interactive "^p")
-  (or arg (setq arg 1))
-  (etcc-user-next-movie (- arg)))
-
-
-
-
-
 (defun etcc-user-at (&optional pos)
   "Return object of `etcc-user' at the position of POS.
 POS defaults to t current position.
@@ -2852,109 +2791,6 @@ With a prefix argument, kill the etcc search buffer"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defun etcc-user-movie-info-string (movie broadcaster tags)
-  "Format the movie info string from `etcc-movie' object MOVIE.
-BROADCASTER is a `etcc-user' object of the movie's boradcaster."
-  (concat (format-time-string "%Y-%m-%d %a %H:%M "
-                              (etcc-movie-created movie))
-          "(" (number-to-string (/ (+ (etcc-movie-duration movie) 59) 60)) "分)"
-          (if (etcc-movie-is-live movie)
-              (etcc/fontify-string " [LIVE]" font-lock-warning-face))
-          (if (etcc-movie-is-recorded movie)
-              (etcc/fontify-string " [REC]" font-lock-warning-face))
-          " "  (etcc/fontify-string (or (etcc-movie-subtitle movie)
-                                        (etcc-movie-title movie)
-                                        "[no title]")
-                                    'font-lock-type-face)
-          "\n"
-          (format "    C:%d | V:%d/%d"
-                  (etcc-movie-comment-count movie)
-                  (max (etcc-movie-current-view-count movie)
-                       (etcc-movie-max-view-count movie))
-                  (etcc-movie-total-view-count movie))
-          (let ((c (etcc/unescape-comment
-                    (etcc-movie-last-owner-comment movie) t)))
-            (if c (concat " | " (etcc/fontify-string c 'font-lock-builtin-face))))
-          "\n"))
-
-;; (defun etcc/insert-movies-by-user (movies broadcaster)
-(defun etcc/insert-user-movies (movies broadcaster)
-  (mapc (lambda (movie)
-          (let ((etcc-movie (make-etcc-movie-from-alist movie)))
-            (etcc/insert-movie-info etcc-movie broadcaster nil
-                                    'etcc-user-movie-info-string)))
-        movies))
-
-(cl-defun etcc-get-movies-by-user-sentinel (&key data response
-                                                 &allow-other-keys)
-  (let* ((total-count (assoc-default 'total_count data))
-         (movies (assoc-default 'movies data))
-         (url (request-response-url response))
-         (user-id (etcc/user-id-from-url url)))
-    (let ((buf (get-buffer etcc-user-info-buffer-name))
-          pos) ; XXX
-      (set-buffer buf)
-      (setq buffer-read-only nil)
-      (goto-char (point-max))
-      (insert "\n")
-      (save-excursion
-        (etcc/insert-user-movies movies etcc-broadcaster))
-      (if (= (length movies) 0)
-          (insert "...no movies...\n"))
-      (set-buffer-modified-p nil)
-      (setq buffer-read-only t)
-      (display-buffer buf))
-    (message "Getting movies by user %s...done - %d movies found"
-             user-id (length movies))))
-
-(defun etcc/view-user (etcc-user &optional no-image)
-  (etcc/display-user-info etcc-user (not no-image) nil t)
-  (let ((user-id (etcc-user-screen-id etcc-user)))
-    (message "Getting movies by user %s..." user-id)
-    (etcc-api/get-movies-by-user user-id
-                                 :offset 0
-                                 :limit 50 ; XXX
-                                 :success 'etcc-get-movies-by-user-sentinel)))
-
-(cl-defun etcc-get-user-info-sentinel (&key data response (no-image nil)
-                                            &allow-other-keys)
-  (let* ((user (assoc-default 'user data))
-         (supporter-count (assoc-default 'supporter_count data))
-         (supporting-count (assoc-default 'supporting_count data))
-         (etcc-user (make-etcc-user-from-alist
-                     user supporter-count supporting-count)))
-    (message "Getting user info of %s..." (etcc-user-screen-id etcc-user))
-    (etcc/view-user etcc-user no-image)))
-
-(cl-defun etcc-get-user-info-sentinel/no-image (&key data response
-                                                     &allow-other-keys)
-  (etcc-get-user-info-sentinel :data data :response response
-                               :no-image t))
-
-(defun etcc-view-user (user &optional no-image)
-  "View the user info of USER with listing user's movies.
-USER is an `etcc-user' object, user ID, or user screen ID.
-If NO-IMAGE is non-nil, do not display the user's image."
-  (interactive (list (etcc-read-user-id)
-                     current-prefix-arg))
-  (let ((user-id (if (etcc-user-p user)
-                     (etcc-user-screen-id user)
-                   user))
-        (callback (if no-image
-                      'etcc-get-user-info-sentinel/no-image
-                    'etcc-get-user-info-sentinel)))
-    (etcc-api/get-user-info user-id
-                            :success callback)
-    (message "Getting user info of %s..." user-id)))
-
-(defun etcc-view-user-at-point (&optional no-image)
-  "Display the info and movie list of the user at the point"
-  (interactive "P")
-  (etcc-view-user (etcc-user-at) no-image))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
 (defvar etcc-search-user-mode-map nil)
 
 (unless etcc-search-user-mode-map
@@ -3111,6 +2947,173 @@ With a prefix argument, kill the etcc search-user buffer"
   (if kill-buffer
       (etcc-search-user-kill-buffer)
     (bury-buffer)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defvar etcc-user-mode-map nil)
+
+(unless etcc-user-mode-map
+  (setq etcc-user-mode-map (make-sparse-keymap))
+  (define-key etcc-user-mode-map "\C-c\C-i" 'etcc-display-movie-info-at-point)
+  (define-key etcc-user-mode-map "\C-c\C-o" 'etcc-open-link)
+  (define-key etcc-user-mode-map "\C-c\C-t" 'etcc-browse-thumbnail)
+  (define-key etcc-user-mode-map "\C-m" 'etcc-view-movie-at-point)
+  (define-key etcc-user-mode-map (kbd "<DEL>") 'scroll-down-command)
+  (define-key etcc-user-mode-map " " 'scroll-up-command)
+  (define-key etcc-user-mode-map "/" 'etcc-search-live)
+  (define-key etcc-user-mode-map "?" 'describe-mode)
+  (define-key etcc-user-mode-map "B" 'etcc-search-user)
+  (define-key etcc-user-mode-map "C" 'etcc-search-by-category)
+  (define-key etcc-user-mode-map "I" 'etcc-display-movie-info-at-point)
+  (define-key etcc-user-mode-map "L" 'etcc-view-live)
+  (define-key etcc-user-mode-map "M" 'etcc-view-movie)
+  (define-key etcc-user-mode-map "N" 'etcc-search-new)
+  (define-key etcc-user-mode-map "R" 'etcc-search-recommend)
+  (define-key etcc-user-mode-map "S" 'etcc-search-by-word)
+  (define-key etcc-user-mode-map "T" 'etcc-search-by-tag)
+  (define-key etcc-user-mode-map "U" 'etcc-view-from-url)
+  (define-key etcc-user-mode-map "g" 'etcc-user-refresh)
+  (define-key etcc-user-mode-map "n" 'etcc-user-next-movie)
+  (define-key etcc-user-mode-map "p" 'etcc-user-previous-movie)
+  (define-key etcc-user-mode-map "q" 'bury-buffer)
+  (define-key etcc-user-mode-map "s/" 'etcc-search-live)
+  (define-key etcc-user-mode-map "sb" 'etcc-search-user)
+  (define-key etcc-user-mode-map "sn" 'etcc-search-new)
+  (define-key etcc-user-mode-map "sr" 'etcc-search-recommend)
+  (define-key etcc-user-mode-map "ss" 'etcc-search-by-word)
+  (define-key etcc-user-mode-map "st" 'etcc-search-by-tag)
+  (define-key etcc-user-mode-map "su" 'etcc-search-user)
+  (define-key etcc-user-mode-map "sw" 'etcc-search-by-word))
+
+(defun etcc-user-mode ()
+  "Major mode for Emacs Twitcasting Client - view user info and movies
+
+\\{etcc-user-mode-map}"
+  (interactive)
+  (set (make-local-variable 'etcc-broadcaster) nil)
+  (setq major-mode 'etcc-user-mode)
+  (setq mode-name "ETCC-user")
+;;   (make-local-variable 'kill-buffer-hook)
+  (use-local-map etcc-user-mode-map)
+  (run-hooks 'etcc-user-mode-hook))
+
+(defun etcc-user-refresh (&optional no-image)
+  (interactive "P")
+  (let ((user-id (etcc-user-screen-id etcc-broadcaster)))
+    (etcc-view-user user-id no-image)))
+
+(defun etcc-user-next-movie (&optional arg no-error)
+  "Move to the beginning of the next user movie."
+  (interactive "^p")
+  (etcc-next-regexp etcc-user-movie-line-regexp "user movie" arg no-error))
+
+(defun etcc-user-previous-movie (&optional arg)
+  "Move to the beginning of the previous user movie."
+  (interactive "^p")
+  (or arg (setq arg 1))
+  (etcc-user-next-movie (- arg)))
+
+(defun etcc-user-movie-info-string (movie broadcaster tags)
+  "Format the movie info string from `etcc-movie' object MOVIE.
+BROADCASTER is a `etcc-user' object of the movie's boradcaster."
+  (concat (format-time-string "%Y-%m-%d %a %H:%M "
+                              (etcc-movie-created movie))
+          "(" (number-to-string (/ (+ (etcc-movie-duration movie) 59) 60)) "分)"
+          (if (etcc-movie-is-live movie)
+              (etcc/fontify-string " [LIVE]" font-lock-warning-face))
+          (if (etcc-movie-is-recorded movie)
+              (etcc/fontify-string " [REC]" font-lock-warning-face))
+          " "  (etcc/fontify-string (or (etcc-movie-subtitle movie)
+                                        (etcc-movie-title movie)
+                                        "[no title]")
+                                    'font-lock-type-face)
+          "\n"
+          (format "    C:%d | V:%d/%d"
+                  (etcc-movie-comment-count movie)
+                  (max (etcc-movie-current-view-count movie)
+                       (etcc-movie-max-view-count movie))
+                  (etcc-movie-total-view-count movie))
+          (let ((c (etcc/unescape-comment
+                    (etcc-movie-last-owner-comment movie) t)))
+            (if c (concat " | " (etcc/fontify-string c 'font-lock-builtin-face))))
+          "\n"))
+
+;; (defun etcc/insert-movies-by-user (movies broadcaster)
+(defun etcc/insert-user-movies (movies broadcaster)
+  (mapc (lambda (movie)
+          (let ((etcc-movie (make-etcc-movie-from-alist movie)))
+            (etcc/insert-movie-info etcc-movie broadcaster nil
+                                    'etcc-user-movie-info-string)))
+        movies))
+
+(cl-defun etcc-get-movies-by-user-sentinel (&key data response
+                                                 &allow-other-keys)
+  (let* ((total-count (assoc-default 'total_count data))
+         (movies (assoc-default 'movies data))
+         (url (request-response-url response))
+         (user-id (etcc/user-id-from-url url)))
+    (let ((buf (get-buffer etcc-user-info-buffer-name))
+          pos) ; XXX
+      (set-buffer buf)
+      (setq buffer-read-only nil)
+      (goto-char (point-max))
+      (insert "\n")
+      (save-excursion
+        (etcc/insert-user-movies movies etcc-broadcaster))
+      (if (= (length movies) 0)
+          (insert "...no movies...\n"))
+      (set-buffer-modified-p nil)
+      (setq buffer-read-only t)
+      (display-buffer buf))
+    (message "Getting movies by user %s...done - %d movies found"
+             user-id (length movies))))
+
+(defun etcc/view-user (etcc-user &optional no-image)
+  (etcc/display-user-info etcc-user (not no-image) nil t)
+  (let ((user-id (etcc-user-screen-id etcc-user)))
+    (message "Getting movies by user %s..." user-id)
+    (etcc-api/get-movies-by-user user-id
+                                 :offset 0
+                                 :limit 50 ; XXX
+                                 :success 'etcc-get-movies-by-user-sentinel)))
+
+(cl-defun etcc-get-user-info-sentinel (&key data response (no-image nil)
+                                            &allow-other-keys)
+  (let* ((user (assoc-default 'user data))
+         (supporter-count (assoc-default 'supporter_count data))
+         (supporting-count (assoc-default 'supporting_count data))
+         (etcc-user (make-etcc-user-from-alist
+                     user supporter-count supporting-count)))
+    (message "Getting user info of %s..." (etcc-user-screen-id etcc-user))
+    (etcc/view-user etcc-user no-image)))
+
+(cl-defun etcc-get-user-info-sentinel/no-image (&key data response
+                                                     &allow-other-keys)
+  (etcc-get-user-info-sentinel :data data :response response
+                               :no-image t))
+
+(defun etcc-view-user (user &optional no-image)
+  "View the user info of USER with listing user's movies.
+USER is an `etcc-user' object, user ID, or user screen ID.
+If NO-IMAGE is non-nil, do not display the user's image."
+  (interactive (list (etcc-read-user-id)
+                     current-prefix-arg))
+  (let ((user-id (if (etcc-user-p user)
+                     (etcc-user-screen-id user)
+                   user))
+        (callback (if no-image
+                      'etcc-get-user-info-sentinel/no-image
+                    'etcc-get-user-info-sentinel)))
+    (etcc-api/get-user-info user-id
+                            :success callback)
+    (message "Getting user info of %s..." user-id)))
+
+(defun etcc-view-user-at-point (&optional no-image)
+  "Display the info and movie list of the user at the point"
+  (interactive "P")
+  (etcc-view-user (etcc-user-at) no-image))
+
 
 (provide 'etcc)
 
