@@ -1080,7 +1080,7 @@ LANG must be \"ja\" or \"en\"."
   (set (make-local-variable 'etcc-broadcaster) nil)
   (set (make-local-variable 'etcc-tags) nil)
   (set (make-local-variable 'etcc-comment-all-count) 0)
-  (set (make-local-variable 'etcc-last-comment-id) 0)
+  (set (make-local-variable 'etcc-last-comment-id) 1)
   (set (make-local-variable 'etcc-comment-offset) 0)
   (set (make-local-variable 'etcc/comment-updater-running) nil)
   (set (make-local-variable 'etcc/comment-updater-status) nil)
