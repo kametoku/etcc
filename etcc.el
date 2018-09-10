@@ -1701,7 +1701,7 @@ and display them as well"
 
 (defun etcc-user-at (&optional pos)
   "Return object of `etcc-user' at the position of POS.
-POS defaults to t current position.
+POS defaults to the current position.
 If the 'etcc-user text property is defined at the position,
 return the value of 'etcc-user property.
 If the 'etcc-comment text property is defined at the position,
@@ -1726,7 +1726,7 @@ Otherwise, return the broadcaster of the buffer."
 
 (defun etcc-comment-at (&optional pos)
   "Return object of `etcc-comment' at the position of POS.
-POS defaults to t current position."
+POS defaults to the current position."
   (get-text-property (or pos (point)) 'etcc-comment))
 
 (defun etcc-broadcaster-p ()
@@ -1874,7 +1874,7 @@ defined by `etcc-comment-buffer-name'."
 
 (defun etcc-movie-at (&optional pos no-error)
   "Return object of `etcc-movie' at the position of POS.
-POS defaults to t current position.
+POS defaults to the current position.
 If the 'etcc-movie text property is defined at the position,
 return the value of 'etcc-movie property.
 Otherwise, return the 'etcc-movie local variable of the buffer...."
@@ -2399,9 +2399,7 @@ BROADCASTER is a `etcc-user' object of the movie's boradcaster."
               (etcc/time-string (etcc-movie-duration movie))
               " "
               (etcc/user-string broadcaster))
-             (etcc/fontify-string (format ":%s:"
-                                          (etcc-category
-                                           (etcc-movie-category movie)))
+             (etcc/fontify-string (format ":%s:" (etcc-category category))
                                   'font-lock-preprocessor-face)))
    (format "    %-15s %s\n"
            (concat
@@ -2567,12 +2565,35 @@ If NO-WAIT is non-nil, update asyncronously."
           (error "unable to update categories: %s %s"
                  (car error-thrown) (cdr error-thrown)))))))
 
+(defun etcc-category-at (&optional pos)
+  "Return sub category id at the position of POS.
+POS defaults to the current position.
+If the 'etcc-sub-category text property is defined at the position,
+return the value of `etcc-sub-category-id' of the property.
+If the 'etcc-movie text property is defined at the position,
+return the value of etcc-movie-category of the movie.
+Otherwise, return nil."
+  (or pos (setq pos (point)))
+  (let ((sub-category (get-text-property pos 'etcc-sub-category))
+        (movie (or (get-text-property pos 'etcc-movie)
+                   (if (boundp 'etcc-movie) etcc-movie))))
+    (cond ((etcc-sub-category-p sub-category)
+           (etcc-sub-category-id sub-category))
+          ((etcc-movie-p movie)
+           (etcc-movie-category movie)))))
+
 (defun etcc-read-category (&optional prompt history default no-update)
   (unless no-update
     (etcc-update-categories))
-  (let ((selection (completing-read prompt etcc-category-collection nil t nil
-                                    history default)))
-    (assoc-default selection etcc-category-collection)))
+  (let* ((selection (completing-read prompt etcc-category-collection nil t nil
+                                     history default))
+         (cat (assoc-default selection etcc-category-collection)))
+    (save-match-data
+      (cond ((etcc-sub-category-p cat)
+             (etcc-sub-category-id cat))
+            ((string-match "^[^ ]+" selection)
+             (match-string 0 selection))
+            (t selection)))))
 
 (defun etcc-read-search-context (type &optional default)
   (if (symbolp type)
@@ -2587,12 +2608,8 @@ If NO-WAIT is non-nil, update asyncronously."
                          'etcc-search-word-context-hist)))
              (read-string prompt nil hist default)))
           ((equal type "category")
-           (let ((etcc-category
-                  (etcc-read-category prompt 
-                                      'etcc-search-category-context-hist
-                                      default)))
-             (if etcc-category
-                 (etcc-sub-category-id etcc-category)))))))
+           (etcc-read-category prompt 'etcc-search-category-context-hist
+                               default)))))
 
 (defun etcc-search-live (type context limit &optional no-history)
   (interactive
@@ -2740,7 +2757,7 @@ Prefix arg LIMIT is the max number of movies to be listed."
 (defun etcc-search-by-category (context &optional limit)
   "Search live by categories.
 Prefix arg LIMIT is the max number of movies to be listed."
-  (interactive (list (etcc-read-search-context 'category)
+  (interactive (list (etcc-read-search-context 'category (etcc-category-at))
                      (etcc-prefix-numeric-value current-prefix-arg)))
   (etcc-search-live 'category context limit))
 
