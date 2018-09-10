@@ -986,18 +986,6 @@ LANG must be \"ja\" or \"en\"."
                   :params params
                   :success success :error error)))
 
-(cl-defun etcc-api/get-categories-sentinel (&rest args &key data &allow-other-keys)
-  "Default callback of `etcc-api/get-categories'."
-  (let* ((categories (assoc-default 'categories data)))
-    (make-etcc-category-list-from-alist categories)))
-;;     (mapc (lambda (category)
-;;             (let ((etcc-category (make-etcc-category-from-alist category)))
-;;               (add-to-list 'list etcc-category)))
-;;           categories)
-;;     list))
-
-;; test: (etcc-api/get-categories :success 'etcc-api/get-categories-sentinel)
-
 ;;;
 
 (cl-defun etcc-api/search-users (words &key
@@ -2411,7 +2399,10 @@ BROADCASTER is a `etcc-user' object of the movie's boradcaster."
               (etcc/time-string (etcc-movie-duration movie))
               " "
               (etcc/user-string broadcaster))
-             (concat ":" (etcc-movie-category movie) ":")))
+             (etcc/fontify-string (format ":%s:"
+                                          (etcc-category
+                                           (etcc-movie-category movie)))
+                                  'font-lock-preprocessor-face)))
    (format "    %-15s %s\n"
            (concat
             "C:" (number-to-string
@@ -2480,8 +2471,16 @@ BROADCASTER is a `etcc-user' object of the movie's boradcaster."
     (setq buffer-read-only t)
     (setq header-line-format
           `("TwitCasting Live: " etcc-search-type
-            (:eval (if (member etcc-search-type '("tag" "word"))
-                       (concat ": " etcc-search-context)))
+            ,(cond ((member etcc-search-type '("tag" "word"))
+                    (concat ": " etcc-search-context))
+                   ((equal etcc-search-type "category")
+                    (concat ": "
+                            (let ((sub-category
+                                   (assoc-default etcc-search-context
+                                                  etcc-category-alist)))
+                              (if (etcc-sub-category-p sub-category)
+                                  (etcc-sub-category-name sub-category)
+                                sub-category)))))
             " (" (:eval (number-to-string etcc-search-count)) " movies)"
             " - "
             ,(format-time-string "%m/%d %H:%M" (current-time))))
@@ -2511,6 +2510,7 @@ BROADCASTER is a `etcc-user' object of the movie's boradcaster."
 (defvar etcc-search-type-hist nil)
 (defvar etcc-search-tag-context-hist nil)
 (defvar etcc-search-word-context-hist nil)
+(defvar etcc-search-category-context-hist nil)
 
 (defun etcc-read-search-type (&optional default)
   (or default (setq default "recommend"))
@@ -2519,19 +2519,80 @@ BROADCASTER is a `etcc-user' object of the movie's boradcaster."
                    nil t nil 'etcc-search-type-hist
                    default))
 
+(defvar etcc-categories nil)
+(defvar etcc-category-collection nil)   ; "name" => etcc-sub-category
+(defvar etcc-category-alist nil)        ; "id" => etcc-sub-category
+
+(defun etcc-category (id)
+  "Return an object of `etcc-sub-category' whose id is ID."
+  (let ((cat (assoc-default id etcc-category-alist)))
+    (if (etcc-sub-category-p cat)
+        (etcc-sub-category-name cat)
+      (or cat id))))
+
+(cl-defun etcc-update-categories-sentinel (&key data &allow-other-keys)
+  "Callback for `etcc-update-categories'."
+  (let* ((categories (make-etcc-category-list-from-alist
+                      (assoc-default 'categories data)))
+         collection alist)
+    (mapc (lambda (category)
+            (mapc (lambda (sub-category)
+                    (let ((id (etcc-sub-category-id sub-category))
+                          (name (etcc-sub-category-name sub-category))
+                          (count (etcc-sub-category-count sub-category)))
+                      (add-to-list 'collection (cons (format "%s - %s (%d)"
+                                                             id name count)
+                                                     sub-category))
+                      (add-to-list 'alist (cons id sub-category))))
+                  (etcc-category-sub-categories category)))
+          categories)
+    (setq etcc-categories categories
+          etcc-category-collection collection
+          etcc-category-alist alist)
+    (message "updating categories...done")))
+
+(defun etcc-update-categories (&optional no-wait)
+  "Update category list of current live.
+If NO-WAIT is non-nil, update asyncronously."
+  (interactive "P")
+  (let ((response (etcc-api/get-categories
+                   :success 'etcc-update-categories-sentinel)))
+    (message "updating categories...")
+    (unless no-wait
+      (while (not (request-response-done-p response))
+        (sit-for 0.2))
+      (let ((status-code (request-response-status-code response))
+            (error-thrown (request-response-error-thrown response)))
+        (unless (= status-code 200)
+          (error "unable to update categories: %s %s"
+                 (car error-thrown) (cdr error-thrown)))))))
+
+(defun etcc-read-category (&optional prompt history default no-update)
+  (unless no-update
+    (etcc-update-categories))
+  (let ((selection (completing-read prompt etcc-category-collection nil t nil
+                                    history default)))
+    (assoc-default selection etcc-category-collection)))
+
 (defun etcc-read-search-context (type &optional default)
   (if (symbolp type)
       (setq type (symbol-name type)))
-  (if (member type '("tag" "word" "category"))
-      (let ((prompt (format (if default
-                                "Search live with %s (default %s): "
-                              "Search live with %s: ")
-                            type default))
-            (hist (if (equal type "tag")
-                      'etcc-search-tag-context-hist
-                    'etcc-search-word-context-hist)))
-        ;; TODO: use `completing-read' for category search.
-        (read-string prompt nil hist default))))
+  (let* ((fmt (if default
+                  "Search live with %s (default %s): "
+                "Search live with %s: "))
+         (prompt (format fmt type default)))
+    (cond ((member type '("tag" "word"))
+           (let ((hist (if (equal type "tag")
+                           'etcc-search-tag-context-hist
+                         'etcc-search-word-context-hist)))
+             (read-string prompt nil hist default)))
+          ((equal type "category")
+           (let ((etcc-category
+                  (etcc-read-category prompt 
+                                      'etcc-search-category-context-hist
+                                      default)))
+             (if etcc-category
+                 (etcc-sub-category-id etcc-category)))))))
 
 (defun etcc-search-live (type context limit &optional no-history)
   (interactive
