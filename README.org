@@ -42,6 +42,7 @@ https://github.com/kametoku/etcc
      ;; (add-hook 'etcc-display-comments-hook 'emojify-mode)
      ;; (add-hook 'etcc-search-mode-hook 'emojify-mode)
      ;; (add-hook 'etcc-search-user-mode-hook 'emojify-mode)
+     ;; (skk-wrap-newline-command etcc-post-comment)
    #+END_SRC
 
 * Usage
@@ -49,12 +50,12 @@ https://github.com/kametoku/etcc
 - type =M-x etcc-auth= to get yourself authorized.
 
 ** search live movies:
-- type "M-x etcc" or "M-x etcc-search-recommend" to list recommend
+- type =M-x etcc= or =M-x etcc-search-recommend= to list recommend
   live movies.
-- type "M-x etcc-search-new" to list new live movies.
-- type "M-x etcc-search-by-word" to search live movies with words.
-- type "M-x etcc-search-by-tag" to search live movies with tags.
-- type "M-x etcc-search-by-category" to search live movies with categories.
+- type =M-x etcc-search-new= to list new live movies.
+- type =M-x etcc-search-by-word= to search live movies with words.
+- type =M-x etcc-search-by-tag= to search live movies with tags.
+- type =M-x etcc-search-by-category= to search live movies of category.
 
 ** View live/movie
 - Type =M-x etcc-view-movie-from-url= followed by TwitCasting live/movie
@@ -71,8 +72,8 @@ https://github.com/kametoku/etcc
 - type =M-x describe-mode= for more about ETCC mode.
 
 ** Search users and view user info
-- type "M-x etcc-search-user" to search user with words.
-- type "M-x etcc-view-user" followed by user's id to view the user
+- type =M-x etcc-search-user= to search user with words.
+- type =M-x etcc-view-user= followed by user's id to view the user
   info with ther user's movie list
 
 * Screen Shots
