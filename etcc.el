@@ -60,7 +60,7 @@
 ;; - type "M-x etcc-search-new" to list new live movies.
 ;; - type "M-x etcc-search-by-word" to search live movies with words.
 ;; - type "M-x etcc-search-by-tag" to search live movies with tags.
-;; - type "M-x etcc-search-by-category" to search live movies with categories.
+;; - type "M-x etcc-search-by-category" to search live movies with category.
 ;;
 ;; view live/movie:
 ;; - type "M-x etcc-view-movie-from-url" followed by twitcasting
@@ -2623,6 +2623,9 @@ Otherwise, return nil."
      (list type context limit)))
   (if (symbolp type)
       (setq type (symbol-name type)))
+  (unless (and (equal type "category")
+               (called-interactively-p 'any))
+    (etcc-update-categories t))
   (etcc-api/search-live-movies :type type :context context
                                :limit (or limit etcc-search-live-limit)
                                :success 'etcc-search-live-sentinel)
