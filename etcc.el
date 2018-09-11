@@ -2393,7 +2393,7 @@ Otherwise, call the command defined in global key binding interactively."
 BROADCASTER is a `etcc-user' object of the movie's boradcaster."
   (concat
    (let* ((category (etcc-movie-category movie))
-          (fmt (if category "%-49s %20s\n" "%s\n")))
+          (fmt (if category "%-45s %24s\n" "%s\n")))
      (format fmt
              (concat
               (etcc/time-string (etcc-movie-duration movie))
@@ -2518,8 +2518,8 @@ BROADCASTER is a `etcc-user' object of the movie's boradcaster."
                    default))
 
 (defvar etcc-categories nil)
-(defvar etcc-category-collection nil)   ; "name" => etcc-sub-category
-(defvar etcc-category-alist nil)        ; "id" => etcc-sub-category
+(defvar etcc-category-collection nil) ; "id - name (count)" => etcc-sub-category
+(defvar etcc-category-alist nil)      ; "id" => etcc-sub-category
 
 (defun etcc-category (id)
   "Return an object of `etcc-sub-category' whose id is ID."
@@ -2528,6 +2528,22 @@ BROADCASTER is a `etcc-user' object of the movie's boradcaster."
         (etcc-sub-category-name cat)
       (or cat id))))
 
+(defun etcc-category-string (category)
+  "Return category string for CATEGORY.
+CATEGORY is either `etcc-sub-category' object or sub category id string."
+  (let ((cat (cond
+              ((etcc-sub-category-p category)
+               category)
+              ((stringp category)  ; sub category id
+               (assoc-default category etcc-category-alist))
+              (t (error "invalid parameter: %s" category)))))
+    (if cat
+        (format "%s - %s (%d)"
+                (etcc-sub-category-id cat)
+                (etcc-sub-category-name cat)
+                (etcc-sub-category-count cat))
+      category)))
+
 (cl-defun etcc-update-categories-sentinel (&key data &allow-other-keys)
   "Callback for `etcc-update-categories'."
   (let* ((categories (make-etcc-category-list-from-alist
@@ -2535,13 +2551,12 @@ BROADCASTER is a `etcc-user' object of the movie's boradcaster."
          collection alist)
     (mapc (lambda (category)
             (mapc (lambda (sub-category)
-                    (let ((id (etcc-sub-category-id sub-category))
-                          (name (etcc-sub-category-name sub-category))
-                          (count (etcc-sub-category-count sub-category)))
-                      (add-to-list 'collection (cons (format "%s - %s (%d)"
-                                                             id name count)
-                                                     sub-category))
-                      (add-to-list 'alist (cons id sub-category))))
+                    (add-to-list 'collection
+                                 (cons (etcc-category-string sub-category)
+                                       sub-category))
+                    (add-to-list 'alist
+                                 (cons (etcc-sub-category-id sub-category)
+                                       sub-category)))
                   (etcc-category-sub-categories category)))
           categories)
     (setq etcc-categories categories
@@ -2582,10 +2597,15 @@ Otherwise, return nil."
           ((etcc-movie-p movie)
            (etcc-movie-category movie)))))
 
-(defun etcc-read-category (&optional prompt history default no-update)
+(defun etcc-read-category (prompt &optional history default no-update)
+  "Read a sub category id in the minibuffer, with completion."
   (unless no-update
     (etcc-update-categories))
-  (let* ((selection (completing-read prompt etcc-category-collection nil t nil
+  (if default
+      (setq default (etcc-category-string default)))
+  (let* ((prompt (format (if default "%s (default %s): " "%s: ")
+                         prompt default))
+         (selection (completing-read prompt etcc-category-collection nil t nil
                                      history default))
          (cat (assoc-default selection etcc-category-collection)))
     (save-match-data
@@ -2598,18 +2618,20 @@ Otherwise, return nil."
 (defun etcc-read-search-context (type &optional default)
   (if (symbolp type)
       (setq type (symbol-name type)))
-  (let* ((fmt (if default
-                  "Search live with %s (default %s): "
-                "Search live with %s: "))
-         (prompt (format fmt type default)))
-    (cond ((member type '("tag" "word"))
-           (let ((hist (if (equal type "tag")
-                           'etcc-search-tag-context-hist
-                         'etcc-search-word-context-hist)))
-             (read-string prompt nil hist default)))
-          ((equal type "category")
-           (etcc-read-category prompt 'etcc-search-category-context-hist
-                               default)))))
+  (cond ((member type '("tag" "word"))
+         (let* ((fmt (if default
+                         "Search live with %s (default %s): "
+                       "Search live with %s: "))
+                (prompt (format fmt type default))
+                (hist (if (equal type "tag")
+                          'etcc-search-tag-context-hist
+                        'etcc-search-word-context-hist)))
+           (read-string prompt nil hist default)))
+        ((equal type "category")
+         (etcc-read-category "Search live with category"
+                             'etcc-search-category-context-hist
+                             default))
+        (t (error "unknown type: %s" type))))
 
 (defun etcc-search-live (type context limit &optional no-history)
   (interactive
