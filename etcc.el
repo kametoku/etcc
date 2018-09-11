@@ -2568,9 +2568,9 @@ CATEGORY is either `etcc-sub-category' object or sub category id string."
                                        sub-category)))
                   (etcc-category-sub-categories category)))
           categories)
-    (setq etcc-categories categories
-          etcc-category-collection collection
-          etcc-category-alist alist)
+    (setq etcc-categories (reverse categories)
+          etcc-category-collection (reverse collection)
+          etcc-category-alist (reverse alist))
     (message "updating categories...done")))
 
 (defun etcc-update-categories (&optional no-wait)
