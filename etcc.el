@@ -2458,24 +2458,7 @@ Otherwise, call the command defined in global key binding interactively."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defvar etcc-search-mode-map nil)
-
-(unless etcc-search-mode-map
-  (setq etcc-search-mode-map (make-sparse-keymap))
-  (etcc-define-keys etcc-search-mode-map)
-  (define-key etcc-search-mode-map "\C-i" 'etcc-search-next-tag)
-  (define-key etcc-search-mode-map "\C-\M-i" 'etcc-search-previous-tag)
-  (define-key etcc-search-mode-map "\C-m" 'etcc-search-view-movie)
-  (define-key etcc-search-mode-map "\C-c\C-i" 'etcc-search-display-movie-info)
-  (define-key etcc-search-mode-map "I" 'etcc-search-display-movie-info)
-  (define-key etcc-search-mode-map "Q" 'etcc-search-kill-buffer)
-  (define-key etcc-search-mode-map "g" 'etcc-search-refresh)
-  (define-key etcc-search-mode-map "i" 'etcc-view-user-at-point)
-  (define-key etcc-search-mode-map "l" 'etcc-search-previous-search)
-  (define-key etcc-search-mode-map "n" 'etcc-search-next-movie)
-  (define-key etcc-search-mode-map "p" 'etcc-search-previous-movie)
-  (define-key etcc-search-mode-map "q" 'etcc-search-quit)
-  (define-key etcc-search-mode-map "r" 'etcc-search-next-search))
+;;; etcc mode for searching twitcasting live/movie
 
 (defun etcc-define-keys (mode-map)
   "Common keybind for etcc modes.
@@ -2506,6 +2489,25 @@ MODE-MAP is a keyap."
   (define-key mode-map "vm" 'etcc-view-movie)
   (define-key mode-map "vu" 'etcc-view-user)
   (define-key mode-map "vU" 'etcc-view-from-url))
+
+(defvar etcc-search-mode-map nil)
+
+(unless etcc-search-mode-map
+  (setq etcc-search-mode-map (make-sparse-keymap))
+  (etcc-define-keys etcc-search-mode-map)
+  (define-key etcc-search-mode-map "\C-i" 'etcc-search-next-tag)
+  (define-key etcc-search-mode-map "\C-\M-i" 'etcc-search-previous-tag)
+  (define-key etcc-search-mode-map "\C-m" 'etcc-search-view-movie)
+  (define-key etcc-search-mode-map "\C-c\C-i" 'etcc-search-display-movie-info)
+  (define-key etcc-search-mode-map "I" 'etcc-search-display-movie-info)
+  (define-key etcc-search-mode-map "Q" 'etcc-search-kill-buffer)
+  (define-key etcc-search-mode-map "g" 'etcc-search-refresh)
+  (define-key etcc-search-mode-map "i" 'etcc-view-user-at-point)
+  (define-key etcc-search-mode-map "l" 'etcc-search-previous-search)
+  (define-key etcc-search-mode-map "n" 'etcc-search-next-movie)
+  (define-key etcc-search-mode-map "p" 'etcc-search-previous-movie)
+  (define-key etcc-search-mode-map "q" 'etcc-search-quit)
+  (define-key etcc-search-mode-map "r" 'etcc-search-next-search))
 
 (defun etcc-movie-info-string (movie broadcaster tags)
   "Format the comment string from `etcc-movie' object MOVIE.
@@ -2967,7 +2969,7 @@ Prefix arg LIMIT is the max number of movies to be listed."
 
 (defun etcc-search-view-movie ()
   "Start to view the movie at the current point."
-  (interactive "P")
+  (interactive)
   (let* ((movie (get-text-property (point) 'etcc-movie))
          (broadcaster (get-text-property (point) 'etcc-broadcaster))
          (tags (get-text-property (point) 'etcc-tags))
