@@ -1590,7 +1590,6 @@ BROADCASTER is the broadcaster of the movie.
 TAGS is a list of tags of the movie.
 If DISPLAY-THUMBNAIL is non-nil, display the thumbnail image as well.
 If DISPLAY-THUMBNAIL is (16), display the small size thumbnail."
-  (interactive "P")
   (let ((buf (get-buffer-create etcc-movie-info-buffer-name))
         pos)
     (set-buffer buf)
@@ -1986,7 +1985,7 @@ HISTORY specifies a history list."
 
 (defun etcc-view-movie-at-point ()
   "View the movie at the current point."
-  (interactive "P")
+  (interactive)
   (let* ((movie (etcc-movie-at))
          (movie-id (if (etcc-movie-p movie) (etcc-movie-id movie) movie)))
     (if movie-id
@@ -2020,7 +2019,7 @@ HISTORY specifies a history list."
 
 (defun etcc-reload ()
   "Reload the current Twitcasting movie/live."
-  (interactive "P")
+  (interactive)
   (ensure-etcc-buffer
     (if (yes-or-no-p "Will you reload the movie/live? ")
         (let ((url (etcc-movie-link etcc-movie))
@@ -2049,7 +2048,7 @@ instead of killing it."
 
 (defun etcc-open-link ()
   "Open the live/movie link in the external browser."
-  (interactive "P")
+  (interactive)
   (let ((link (etcc-movie-link (etcc-movie-at))))
     (if link
         (etcc-browse-url link)
@@ -2085,7 +2084,7 @@ start to play the recoreded movie, instead."
 
 (defun etcc-stop-hls ()
   "Stop mplayer."
-  (interactive "P")
+  (interactive)
   (ensure-etcc-buffer
     (if (not (process-live-p etcc-play-hls-proc))
         (etcc-message "HLS player not running.")
@@ -2330,7 +2329,7 @@ comment should not be empty."
 
 (defun etcc-delete-comment ()
   "Delete the comment at the point."
-  (interactive "P")
+  (interactive)
   (ensure-etcc-buffer
     (let* ((user (etcc-user-at))
            (comment (etcc-comment-at))
