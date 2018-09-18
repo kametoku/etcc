@@ -399,14 +399,55 @@ The user move lines are found in `etcc-user-mode' buffer."
 (defvar etcc-current-user nil)
 (defvar etcc-mode-map nil)
 
+;;; Faces
+
+(defface etcc-user-name-face
+  '((t (:inherit font-lock-function-name-face)))
+  "Face for ETCC user name.")
+
+(defface etcc-user-id-face
+  '((t (:inherit font-lock-constant-face)))
+  "Face for ETCC user Id.")
+
+(defface etcc-time-string-face
+  '((t (:inherit font-lock-variable-name-face)))
+  "Face for ETCC time string in `etcc-mode'.")
+
+(defface etcc-warning-face
+  '((t (:inherit font-lock-warning-face)))
+  "Face for ETCC warning string.")
+
+(defface etcc-live-face
+  '((t (:inherit font-lock-warning-face)))
+  "Face for ETCC live string.")
+
+(defface etcc-recorded-face
+  '((t (:inherit font-lock-warning-face)))
+  "Face for ETCC recorded string.")
+
+(defface etcc-category-face
+  '((t (:inherit font-lock-preprocessor-face)))
+  "Face for ETCC category string.")
+
+(defface etcc-movie-title-face
+  '((t (:inherit font-lock-type-face)))
+  "Face for ETCC movie title string.")
+
+(defface etcc-tag-face
+  '((t (:inherit font-lock-comment-face)))
+  "Face for ETCC tags.")
+
+(defface etcc-last-owner-comment-face
+  '((t (:inherit font-lock-builtin-face)))
+  "Face for ETCC tags.")
+
 (defface etcc-my-comment-face
   '((((class color) (background light))
      (:background "beige"))
     (((class color) (background dark))
      (:background "pink2"))
     (t :inverse-video t))
-  "Face to highlight my comments."
-  :group 'etcc-mode)
+  "Face to highlight my comments.")
 
 (defface etcc-broadcaster-comment-face
   '((((class color) (background light))
@@ -414,8 +455,7 @@ The user move lines are found in `etcc-user-mode' buffer."
     (((class color) (background dark))
      (:background "green"))
     (t :inverse-video t))
-  "Face to highlight broadcaster's comments."
-  :group 'etcc-mode)
+  "Face to highlight broadcaster's comments.")
 
 (defface etcc-deleted-comment-face
   '((((class color) (background light))
@@ -423,8 +463,7 @@ The user move lines are found in `etcc-user-mode' buffer."
     (((class color) (background dark))
      (:strike-through t))
     (t :inverse-video t))
-  "Face to highlight deleted comments."
-  :group 'etcc-mode)
+  "Face to highlight deleted comments.")
 
 (defface etcc-volatile-highlights-face
   '((((class color) (background light))
@@ -432,8 +471,11 @@ The user move lines are found in `etcc-user-mode' buffer."
     (((class color) (background dark))
      (:background "SkyBlue4"))
     (t :inverse-video t))
-  "Face used for volatile highlights."
-  :group 'etcc-mode)
+  "Face used for volatile highlights.")
+
+;;; Data Types
+
+;; https://apiv2-doc.twitcasting.tv/
 
 (defun etcc-alist-to-plist (alist)
   "Convert ALIST to a plist.
@@ -450,10 +492,6 @@ Ex: ((\"id\" . 123) (\"user_id\" . 456) (is_live . :json-false))
         (setq plist (cons value (cons key plist))))
       (setq alist (cdr alist)))
     (nreverse plist)))
-
-;;; Data Types
-
-;; https://apiv2-doc.twitcasting.tv/
 
 ;; ユーザを表すオブジェクト
 (cl-defstruct etcc-user
@@ -1204,12 +1242,12 @@ If NAME-ONLY is non-nil, return the string without user id."
   (if (etcc-user-p user)
       (concat
        (etcc/fontify-string (copy-sequence (etcc-user-name user))
-                            font-lock-function-name-face nil 'etcc-user user)
+                            'etcc-user-name-face nil 'etcc-user user)
        (unless name-only
          (etcc/fontify-string (concat "@" (etcc-user-screen-id user))
-                              font-lock-constant-face nil 'etcc-user user)))
+                              'etcc-user-id-face nil 'etcc-user user)))
     (etcc/fontify-string (format "@%s" user)
-                         font-lock-constant-face nil 'user-id user)))
+                         'etcc-user-id-face nil 'user-id user)))
 
 (defun etcc-comment-string (etcc-comment)
   "Format the comment string from `etcc-comment' object ETCC-COMMENT."
@@ -1218,7 +1256,7 @@ If NAME-ONLY is non-nil, return the string without user id."
          (created (etcc-comment-created etcc-comment)))
     (concat
      (etcc/fontify-string (format-time-string "%H:%M:%S " created)
-                          font-lock-variable-name-face)
+                          'etcc-time-string-face)
      (etcc/user-string user)
      "\n         " (replace-regexp-in-string "\\\\n" "\n         " message))))
 
@@ -1311,7 +1349,7 @@ Otherwise, return the next offset incresing current offset by
              (message "ETCC: all comments received."))
             (t
              (insert (etcc/fontify-string "...more comments..."
-                                          font-lock-warning-face t))
+                                          'etcc-warning-face t))
              (message "ETCC: comment max offset reached."))))))
 
 (cl-defun etcc/comment-updater-sentinel (&key data &allow-other-keys)
@@ -2521,7 +2559,7 @@ TAGS is a list of tags."
               " "
               (etcc/user-string broadcaster))
              (etcc/fontify-string (format ":%s:" (etcc-category category))
-                                  'font-lock-preprocessor-face)))
+                                  'etcc-category-face)))
    (format "    %-15s %s\n"
            (concat
             "C:" (number-to-string
@@ -2533,12 +2571,12 @@ TAGS is a list of tags."
                     (let ((subtitle (etcc-movie-subtitle movie)))
                       (if subtitle
                           (concat " " subtitle))))
-            'font-lock-type-face))
+            'etcc-movie-title-face))
    "    "
    (if tags
        (mapconcat (lambda (tag)
                     (etcc/fontify-string (format "#%s" tag)
-                                         'font-lock-comment-face))
+                                         'etcc-tag-face))
                   tags " "))
    "\n"))
 
@@ -3069,7 +3107,7 @@ With a prefix argument KILL-BUFFER, kill the etcc search buffer."
   "Insert the user info USER into the current position.
 USER is an `etcc-user' object."
   (let ((beg (point))
-        (live-string (etcc/fontify-string "[LIVE]" font-lock-warning-face)))
+        (live-string (etcc/fontify-string "[LIVE]" 'etcc-live-face)))
     (let ((fmt (if (etcc-user-is-live user) "%-31s %s" "%s")))
       (insert (format fmt (etcc/user-string user) live-string)))
     (insert "\n    " (format "L:%d" (etcc-user-level user)))
@@ -3261,13 +3299,13 @@ TAGS is a list of tags."
                               (etcc-movie-created movie))
           "(" (number-to-string (/ (+ (etcc-movie-duration movie) 59) 60)) "分)"
           (if (etcc-movie-is-live movie)
-              (etcc/fontify-string " [LIVE]" font-lock-warning-face))
+              (concat " " (etcc/fontify-string "[LIVE]" 'etcc-live-face)))
           (if (etcc-movie-is-recorded movie)
-              (etcc/fontify-string " [REC]" font-lock-warning-face))
+              (concat " " (etcc/fontify-string "[REC]" 'etcc-recorded-face)))
           " "  (etcc/fontify-string (or (etcc-movie-subtitle movie)
                                         (etcc-movie-title movie)
                                         "[no title]")
-                                    'font-lock-type-face)
+                                    'etcc-movie-title-face)
           "\n"
           (format "    C:%d | V:%d/%d"
                   (etcc-movie-comment-count movie)
@@ -3276,7 +3314,8 @@ TAGS is a list of tags."
                   (etcc-movie-total-view-count movie))
           (let ((c (etcc/unescape-comment
                     (etcc-movie-last-owner-comment movie) t)))
-            (if c (concat " | " (etcc/fontify-string c 'font-lock-builtin-face))))
+            (if c (concat " | " (etcc/fontify-string
+                                 c 'etcc-last-owner-comment-face))))
           "\n"))
 
 ;; (defun etcc/insert-movies-by-user (movies broadcaster)
