@@ -137,6 +137,11 @@
   :group 'etcc
   :type 'hook)
 
+(defcustom etcc-display-supporting-mode-hook nil
+  "Hook called in `etcc-view-supporting-mode'."
+  :group 'etcc
+  :type 'hook)
+
 (defcustom etcc-auth-client-id nil
   ;; アプリケーションのClientID
   "Client ID provided by Twitcast.
@@ -233,6 +238,12 @@ Note the max limit supported by Twitcasting API is 20."
   :group 'etcc
   :type 'number)
 
+(defcustom etcc-supporting-list-limit 20
+  "Limit of supporting users per request.
+Note the max limit supported by Twitcasting API is 20."
+  :group 'etcc
+  :type 'number)
+
 (defcustom etcc-auth-default-time-out 120
   "Timeout in seconds until giving up authorization."
   :group 'etcc
@@ -292,6 +303,11 @@ The second group matched represents the movie id."
 
 (defcustom etcc-supporter-list-buffer-name "*ETCC-supporters*"
   "The buffer name to display the supporter list."
+  :group 'etcc
+  :type 'string)
+
+(defcustom etcc-supporting-list-buffer-name "*ETCC-supportings*"
+  "The buffer name to display the supporting list."
   :group 'etcc
   :type 'string)
 
@@ -2516,6 +2532,7 @@ MODE-MAP is a keyap."
   (define-key mode-map "?" 'describe-mode)
   (define-key mode-map "B" 'etcc-search-user)
   (define-key mode-map "C" 'etcc-search-by-category)
+  (define-key mode-map "G" 'etcc-display-supporting-at)
   (define-key mode-map "L" 'etcc-view-live)
   (define-key mode-map "M" 'etcc-view-movie)
   (define-key mode-map "N" 'etcc-search-new)
@@ -3254,28 +3271,23 @@ With a prefix argument KILL-BUFFER, kill the etcc search-user buffer."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-(defvar etcc-display-supporter-mode-map nil)
+(defvar etcc-supporter-mode-map nil)
 
-(unless etcc-display-supporter-mode-map
-  (setq etcc-display-supporter-mode-map (make-sparse-keymap))
-  (etcc-define-keys etcc-display-supporter-mode-map)
-  (define-key etcc-display-supporter-mode-map "\C-m" 'etcc-view-user-at-point)
-  (define-key etcc-display-supporter-mode-map "\C-c\C-n"
-    'etcc-display-supporter-next)
-  (define-key etcc-display-supporter-mode-map "Q"
-    'etcc-display-supporter-kill-buffer)
-  (define-key etcc-display-supporter-mode-map "g"
-    'etcc-display-supporter-refresh)
-  (define-key etcc-display-supporter-mode-map "i" 'etcc-view-user-at-point)
-  (define-key etcc-display-supporter-mode-map "n"
-    'etcc-display-supporter-next-user)
-  (define-key etcc-display-supporter-mode-map "p"
-    'etcc-display-supporter-previous-user)
-  (define-key etcc-display-supporter-mode-map "q" 'etcc-search-user-quit))
+(unless etcc-supporter-mode-map
+  (setq etcc-supporter-mode-map (make-sparse-keymap))
+  (etcc-define-keys etcc-supporter-mode-map)
+  (define-key etcc-supporter-mode-map "\C-m" 'etcc-view-user-at-point)
+  (define-key etcc-supporter-mode-map "\C-c\C-n" 'etcc-display-supporter-next)
+  (define-key etcc-supporter-mode-map "Q" 'etcc-search-user-kill-buffer)
+  (define-key etcc-supporter-mode-map "g" 'etcc-supporter-refresh)
+  (define-key etcc-supporter-mode-map "i" 'etcc-view-user-at-point)
+  (define-key etcc-supporter-mode-map "n" 'etcc-supporter-next-user)
+  (define-key etcc-supporter-mode-map "p" 'etcc-supporter-previous-user)
+  (define-key etcc-supporter-mode-map "q" 'etcc-search-user-quit))
 
-(defun etcc/insert-supporter-info (supporter)
-  "Insert the supporter info SUPPORTER into the current position.
-SUPPORTER is an `etcc-supporter' object."
+(defun etcc/insert-sup-user-info (supporter)
+  "Insert the info of supporter user SUPPORTER into the current position.
+SUPPORTER is an `etcc-supporter-user' object."
   (let ((beg (point))
         (live-string (etcc/fontify-string "[LIVE]" 'etcc-live-face)))
     (let ((fmt (if (etcc-supporter-user-is-live supporter) "%-31s %s" "%s")))
@@ -3290,53 +3302,71 @@ SUPPORTER is an `etcc-supporter' object."
     (insert "\n\n")
     (add-text-properties beg (point) (list 'etcc-user supporter))))
 
-(defun etcc/insert-supporters (supporters)
+(defun etcc/insert-sup-users (supporters)
   "Insert the supporter info each of SUPPORTERS."
   (mapc (lambda (supporter)
           (let ((etcc-supporter (make-etcc-supporter-user-from-alist supporter)))
-            (etcc/insert-supporter-info etcc-supporter)))
+            (etcc/insert-sup-user-info etcc-supporter)))
         supporters))
 
-(defun etcc/display-supporter-list (user-id total supporters &optional offset sort append)
-  "Insert the supporter list SUPPORTERS of USER-ID in a dedicated buffer.
-TOTAL is the total of supporters.
+(defun etcc/display-sup-list (users offset &optional append)
+  "Insert the supporter list USERS in the current buffer.
 OFFSET is the offset of the list.
-SORT specifies the order of list, ether of \"new\" or \"ranking\"."
+If APPEND is non-nil, insert the list at the end of the buffer.
+Otherwise, erase the buffer and insert the list."
+  (if append
+      (goto-char (point-max))
+    (let ((inhibit-read-only t))
+      (erase-buffer)))
+  (setq buffer-read-only nil)
+  (setq etcc-offset (cond ((= (length users) 0) nil)
+                          (offset)
+                          (t "0")))
+  (save-excursion
+    (etcc/insert-sup-users users))
+  (set-buffer-modified-p nil)
+  (setq buffer-read-only t))
+
+(defun etcc/display-supporter-list (user-id total users offset sort
+                                            &optional append)
+  "Insert the supporter list USERS of USER-ID in the dedicated buffer.
+TOTAL is the total number of users.
+OFFSET is the offset of the list.
+SORT specifies the order of list, ether of \"new\" or \"ranking\".
+If APPEND is non-nil, insert the list at the end of the buffer."
   (let ((buf (get-buffer-create etcc-supporter-list-buffer-name)))
     (set-buffer buf)
-    (if append
-        (goto-char (point-max))
-      (let ((inhibit-read-only t))
-        (erase-buffer)))
-    (setq buffer-read-only nil)
-    (etcc-display-supporter-mode)
+    (etcc-supporter-mode)
     (setq etcc-total total)
     (setq etcc-broadcaster user-id)
-    (setq etcc-offset (or offset "0"))
     (setq etcc-sort (or sort "new"))
-    (switch-to-buffer buf)
-    (save-excursion
-      (etcc/insert-supporters supporters))
-    (set-buffer-modified-p nil)
-    (setq buffer-read-only t)
+;;     (switch-to-buffer buf)
+    (display-buffer buf)
+    (etcc/display-sup-list users offset append)
     (setq header-line-format
           '("TwitCasting supporter of "
             (:eval (etcc/user-string etcc-broadcaster))
             " (" (:eval (number-to-string etcc-total)) " supporters)"
-            " [" etcc-sort "]"))))
+            " [" etcc-sort "]")))
+  (message "Fetching supporters...done - %d supporters fetched"
+           (length users)))
 
-(cl-defun etcc-display-supporter-sentinel (&key data response &allow-other-keys)
+(defun etcc-display-sup-sentinel (data response user-type display-list-func
+                                       &optional append)
+  "Callback for `etcc-display-supporter' and `etcc-display-supporting'."
   (let* ((total (assoc-default 'total data))
-         (supporters (assoc-default 'supporters data))
+         (users (assoc-default user-type data))
          (url (etcc/parse-url (request-response-url response)))
          (base-url (car url))
          (query (cdr url))
          (user-id (etcc/user-id-from-url base-url))
          (offset (car (assoc-default "offset" query)))
          (sort (car (assoc-default "sort" query))))
-    (etcc/display-supporter-list user-id total supporters offset sort)
-    (message "Fetching supporters...done - %d supporters fetched"
-             (length supporters))))
+    (funcall display-list-func user-id total users offset sort append)))
+
+(cl-defun etcc-display-supporter-sentinel (&key data response &allow-other-keys)
+  (etcc-display-sup-sentinel data response 'supporters
+                             'etcc/display-supporter-list))
 
 (defvar etcc-display-supporter-hist nil)
 
@@ -3360,21 +3390,14 @@ If SORT is non-nil, list the supporters in the order of ranking."
 
 (cl-defun etcc-display-supporter-next-sentinel (&key data response
                                                      &allow-other-keys)
-  (let* ((total (assoc-default 'total data))
-         (supporters (assoc-default 'supporters data))
-         (url (etcc/parse-url (request-response-url response)))
-         (base-url (car url))
-         (query (cdr url))
-         (user-id (etcc/user-id-from-url base-url))
-         (offset (car (assoc-default "offset" query)))
-         (sort (car (assoc-default "sort" query))))
-    (etcc/display-supporter-list user-id total supporters offset sort t)
-    (message "Fetching next supporters...done - %d supporters fetched"
-             (length supporters))))
+  (etcc-display-sup-sentinel data response 'supporters
+                             'etcc/display-supporter-list t))
 
 (defun etcc-display-supporter-next ()
   "Get the next bulk of supporter list and display it."
   (interactive)
+  (if (not etcc-offset)
+      (error "No more supporters"))
   (let ((offset (+ (string-to-number etcc-offset)
                    etcc-supporter-list-limit)))
     (etcc-api/supporter-list etcc-broadcaster
@@ -3391,21 +3414,21 @@ If SORT is non-nil, list the supporters in the order of ranking."
   (interactive "P")
   (etcc-display-supporter (etcc-user-at) sort))
 
-(defun etcc-display-supporter-mode ()
+(defun etcc-supporter-mode ()
   "Major mode for Emacs Twitcasting Client - View supporters.
 
-\\{etcc-display-supporter-mode-map}"
+\\{etcc-supporter-mode-map}"
   (interactive)
   (set (make-local-variable 'etcc-total) nil)
   (set (make-local-variable 'etcc-broadcaster) nil)
   (set (make-local-variable 'etcc-offset) nil)
   (set (make-local-variable 'etcc-sort) nil)
-  (setq major-mode 'etcc-display-supporter-mode)
+  (setq major-mode 'etcc-supporter-mode)
   (setq mode-name "ETCC-Supporter")
-  (use-local-map etcc-display-supporter-mode-map)
-  (run-hooks 'etcc-display-supporter-mode-hook))
+  (use-local-map etcc-supporter-mode-map)
+  (run-hooks 'etcc-supporter-mode-hook))
 
-(defun etcc-display-supporter-refresh (&optional other-sort)
+(defun etcc-supporter-refresh (&optional other-sort)
   "View the supporter with the current conditions in the buffer again.
 If OTHER-SORT is non-nil, list the supporters in the order of the other key."
   (interactive "P")
@@ -3414,7 +3437,7 @@ If OTHER-SORT is non-nil, list the supporters in the order of the other key."
                     (t "new"))))
     (etcc-display-supporter etcc-broadcaster sort)))
 
-(defun etcc-display-supporter-next-user (&optional arg)
+(defun etcc-supporter-next-user (&optional arg)
   "Move to the beginning of the next ARG user."
   (interactive "^p")
   (condition-case err
@@ -3423,7 +3446,122 @@ If OTHER-SORT is non-nil, list the supporters in the order of the other key."
      (if (> arg 0)
          (etcc-display-supporter-next)))))
 
-(defun etcc-display-supporter-previous-user (&optional arg)
+(defun etcc-supporter-previous-user (&optional arg)
+  "Move to the beginning of the previous ARG user."
+  (interactive "^p")
+  (or arg (setq arg 1))
+  (etcc-search-user-next-user (- arg)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defvar etcc-supporting-mode-map nil)
+
+(unless etcc-supporting-mode-map
+  (setq etcc-supporting-mode-map (make-sparse-keymap))
+  (etcc-define-keys etcc-supporting-mode-map)
+  (define-key etcc-supporting-mode-map "\C-m" 'etcc-view-user-at-point)
+  (define-key etcc-supporting-mode-map "\C-c\C-n" 'etcc-supporting-next-list)
+  (define-key etcc-supporting-mode-map "Q" 'etcc-supporting-kill-buffer)
+  (define-key etcc-supporting-mode-map "g" 'etcc-supporting-refresh)
+  (define-key etcc-supporting-mode-map "i" 'etcc-view-user-at-point)
+  (define-key etcc-supporting-mode-map "n" 'etcc-supporting-next-user)
+  (define-key etcc-supporting-mode-map "p" 'etcc-supporting-previous-user)
+  (define-key etcc-supporting-mode-map "q" 'etcc-search-user-quit))
+
+(defun etcc/display-supporting-list (user-id total users offset sort
+                                             &optional append)
+  "Insert the supporting user list USERS of USER-ID in the dedicated buffer.
+TOTAL is the total number of users.
+OFFSET is the offset of the list.
+SORT is a dummy parameter, not used in this function.
+If APPEND is non-nil, insert the list at the end of the buffer."
+  (let ((buf (get-buffer-create etcc-supporting-list-buffer-name)))
+    (set-buffer buf)
+    (etcc-supporting-mode)
+    (setq etcc-total total)
+    (setq etcc-broadcaster user-id)
+;;     (setq etcc-offset (or offset "0"))
+;;     (switch-to-buffer buf)
+    (display-buffer buf)
+    (etcc/display-sup-list users offset append)
+    (setq header-line-format
+          '("TwitCasting supporting users of "
+            (:eval (etcc/user-string etcc-broadcaster))
+            " (" (:eval (number-to-string etcc-total)) " users)")))
+  (message "Fetching supporting...done - %d supporting users fetched"
+           (length users)))
+
+(cl-defun etcc-display-supporting-sentinel (&key data response &allow-other-keys)
+  (etcc-display-sup-sentinel data response 'supporting
+                             'etcc/display-supporting-list))
+
+(defvar etcc-display-supporting-hist nil)
+
+(defun etcc-display-supporting (user)
+  "View the supporting user list of the user USER.
+USER is an `etcc-user' object, user Id, or user screen Id."
+  (interactive (list (etcc-read-user-id nil nil 'etcc-display-supporting-hist)))
+  (let ((user-id (if (etcc-user-p user)
+                     (etcc-user-screen-id user)
+                   user)))
+    (etcc-api/supporting-list user-id :offset 0
+                              :limit etcc-supporting-list-limit
+                              :success 'etcc-display-supporting-sentinel)
+    (message "Fetching supportings...")))
+
+(cl-defun etcc-supporting-next-list-sentinel (&key data response
+                                                   &allow-other-keys)
+  (etcc-display-sup-sentinel data response 'supporting
+                             'etcc/display-supporting-list t))
+
+(defun etcc-supporting-next-list ()
+  "Get the next bulk of supporting list and display it."
+  (interactive)
+  (if (not etcc-offset)
+      (error "No more supporting users"))
+  (let ((offset (+ (string-to-number etcc-offset)
+                   etcc-supporting-list-limit)))
+    (etcc-api/supporting-list etcc-broadcaster
+                              :offset offset
+                              :limit etcc-supporting-list-limit
+                              :success 'etcc-supporting-next-list-sentinel)
+    (message "Fetching next supportings...")))
+
+(defun etcc-display-supporting-at ()
+  "View the supporting list of the user at the point."
+  (interactive)
+  (etcc-display-supporting (etcc-user-at)))
+
+(defun etcc-supporting-mode ()
+  "Major mode for Emacs Twitcasting Client - View supporting users.
+
+\\{etcc-supporting-mode-map}"
+  (interactive)
+  (set (make-local-variable 'etcc-total) nil)
+  (set (make-local-variable 'etcc-broadcaster) nil)
+  (set (make-local-variable 'etcc-offset) nil)
+;;   (set (make-local-variable 'etcc-sort) nil)
+  (setq major-mode 'etcc-supporting-mode)
+  (setq mode-name "ETCC-Supporting")
+  (use-local-map etcc-supporting-mode-map)
+  (run-hooks 'etcc-supporting-mode-hook))
+
+(defun etcc-supporting-refresh ()
+  "View the supporting users in the buffer again."
+  (interactive)
+  (etcc-display-supporting etcc-broadcaster))
+
+(defun etcc-supporting-next-user (&optional arg)
+  "Move to the beginning of the next ARG user."
+  (interactive "^p")
+  (condition-case err
+      (etcc-next-regexp etcc-user-line-regexp "user" arg)
+    (error
+     (if (> arg 0)
+         (etcc-supporting-next-list)))))
+
+(defun etcc-supporting-previous-user (&optional arg)
   "Move to the beginning of the previous ARG user."
   (interactive "^p")
   (or arg (setq arg 1))
