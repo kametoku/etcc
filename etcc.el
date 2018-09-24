@@ -3140,17 +3140,24 @@ USER is an `etcc-user' object."
         (live-string (etcc/fontify-string "[LIVE]" 'etcc-live-face)))
     (let ((fmt (if (etcc-user-is-live user) "%-31s %s" "%s")))
       (insert (format fmt (etcc/user-string user) live-string)))
-    (insert "\n    " (format "L:%d" (etcc-user-level user)))
+    (insert "\n    ")
+    (if (etcc-supporter-user-p user)
+        (insert (format "P:%d/%d "
+                        (etcc-supporter-user-point user)
+                        (etcc-supporter-user-total-point user))))
+    (insert (format "L:%d" (etcc-user-level user)))
     (let ((profile (etcc-user-profile user)))
       (if (> (length profile) 0)
           (insert " | " (replace-regexp-in-string "\n" " " profile))))
     (insert "\n\n")
     (add-text-properties beg (point) (list 'etcc-user user))))
 
-(defun etcc/insert-users (users)
-  "Insert the user info each of USERS."
+(defun etcc/insert-users (users constructor)
+  "Insert the user info each of USERS.
+CONSTRUCTOR is a function to create `etcc-user' or `etcc-supporter-user'
+object from alist."
   (mapc (lambda (user)
-          (let ((etcc-user (make-etcc-user-from-alist user)))
+          (let ((etcc-user (funcall constructor user)))
             (etcc/insert-user-info etcc-user)))
         users))
 
@@ -3168,7 +3175,7 @@ LANG is the search language that was used to search users."
     (setq etcc-search-user-lang lang)
     (setq etcc-search-user-count (length users))
     (switch-to-buffer buf)
-    (etcc/insert-users users)
+    (etcc/insert-users users 'make-etcc-user-from-alist)
     (goto-char (point-min))
     (set-buffer-modified-p nil)
     (setq buffer-read-only t)
@@ -3286,30 +3293,6 @@ With a prefix argument KILL-BUFFER, kill the etcc search-user buffer."
   (define-key etcc-supporter-mode-map "p" 'etcc-supporter-previous-user)
   (define-key etcc-supporter-mode-map "q" 'etcc-search-user-quit))
 
-(defun etcc/insert-sup-user-info (supporter)
-  "Insert the info of supporter user SUPPORTER into the current position.
-SUPPORTER is an `etcc-supporter-user' object."
-  (let ((beg (point))
-        (live-string (etcc/fontify-string "[LIVE]" 'etcc-live-face)))
-    (let ((fmt (if (etcc-supporter-user-is-live supporter) "%-31s %s" "%s")))
-      (insert (format fmt (etcc/user-string supporter) live-string)))
-    (insert "\n    " (format "P:%d/%d L:%d"
-                             (etcc-supporter-user-point supporter)
-                             (etcc-supporter-user-total-point supporter)
-                             (etcc-supporter-user-level supporter)))
-    (let ((profile (etcc-supporter-user-profile supporter)))
-      (if (> (length profile) 0)
-          (insert " | " (replace-regexp-in-string "\n" " " profile))))
-    (insert "\n\n")
-    (add-text-properties beg (point) (list 'etcc-user supporter))))
-
-(defun etcc/insert-sup-users (supporters)
-  "Insert the supporter info each of SUPPORTERS."
-  (mapc (lambda (supporter)
-          (let ((etcc-supporter (make-etcc-supporter-user-from-alist supporter)))
-            (etcc/insert-sup-user-info etcc-supporter)))
-        supporters))
-
 (defun etcc/display-sup-list (users offset &optional append)
   "Insert the supporter list USERS in the current buffer.
 OFFSET is the offset of the list.
@@ -3324,7 +3307,7 @@ Otherwise, erase the buffer and insert the list."
                           (offset)
                           (t "0")))
   (save-excursion
-    (etcc/insert-sup-users users))
+    (etcc/insert-users users 'make-etcc-supporter-user-from-alist))
   (set-buffer-modified-p nil)
   (setq buffer-read-only t))
 
@@ -3482,7 +3465,6 @@ If APPEND is non-nil, insert the list at the end of the buffer."
     (etcc-supporting-mode)
     (setq etcc-total total)
     (setq etcc-broadcaster user-id)
-;;     (setq etcc-offset (or offset "0"))
 ;;     (switch-to-buffer buf)
     (display-buffer buf)
     (etcc/display-sup-list users offset append)
