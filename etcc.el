@@ -2541,6 +2541,7 @@ MODE-MAP is a keyap."
   (define-key mode-map "T" 'etcc-search-by-tag)
   (define-key mode-map "U" 'etcc-view-from-url)
   (define-key mode-map "W" 'etcc-search-by-word)
+  (define-key mode-map "X" 'etcc-display-my-supporting)
   (define-key mode-map "s/" 'etcc-search-live)
   (define-key mode-map "sb" 'etcc-search-user)
   (define-key mode-map "sc" 'etcc-search-by-category)
@@ -3532,6 +3533,15 @@ USER is an `etcc-user' object, user Id, or user screen Id."
   "View the supporting list of the user at the point."
   (interactive)
   (etcc-display-supporting (etcc-user-at)))
+
+(defun etcc-display-my-supporting ()
+  "Display the current user's supporting users."
+  (interactive)
+  (unless etcc-current-user
+    (etcc-auth t)
+    (while (not etcc-current-user)
+      (sleep-for 0.2)))
+  (etcc-display-supporting etcc-current-user))
 
 (defun etcc-supporting-mode ()
   "Major mode for Emacs Twitcasting Client - View supporting users.
