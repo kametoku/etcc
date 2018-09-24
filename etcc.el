@@ -441,6 +441,10 @@ The user move lines are found in `etcc-user-mode' buffer."
   '((t (:inherit font-lock-warning-face)))
   "Face for ETCC recorded string.")
 
+(defface etcc-protected-face
+  '((t (:inherit font-lock-warning-face)))
+  "Face for ETCC protected string.")
+
 (defface etcc-category-face
   '((t (:inherit font-lock-preprocessor-face)))
   "Face for ETCC category string.")
@@ -3488,6 +3492,8 @@ TAGS is a list of tags."
               (concat " " (etcc/fontify-string "[LIVE]" 'etcc-live-face)))
           (if (etcc-movie-is-recorded movie)
               (concat " " (etcc/fontify-string "[REC]" 'etcc-recorded-face)))
+          (if (etcc-movie-is-protected movie)
+              (concat " " (etcc/fontify-string "[PWD]" 'etcc-protected-face)))
           " "  (etcc/fontify-string (or (etcc-movie-subtitle movie)
                                         (etcc-movie-title movie)
                                         "[no title]")
