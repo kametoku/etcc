@@ -132,13 +132,13 @@
   :group 'etcc
   :type 'hook)
 
-(defcustom etcc-display-supporter-mode-hook nil
-  "Hook called in `etcc-display-supporter-mode'."
+(defcustom etcc-supporter-mode-hook nil
+  "Hook called in `etcc-supporter-mode'."
   :group 'etcc
   :type 'hook)
 
-(defcustom etcc-display-supporting-mode-hook nil
-  "Hook called in `etcc-view-supporting-mode'."
+(defcustom etcc-supporting-mode-hook nil
+  "Hook called in `etcc-supporting-mode'."
   :group 'etcc
   :type 'hook)
 
@@ -3311,8 +3311,8 @@ Otherwise, erase the buffer and insert the list."
   (set-buffer-modified-p nil)
   (setq buffer-read-only t))
 
-(defun etcc/display-supporter-list (user-id total users offset sort
-                                            &optional append)
+(defun etcc/display-supporter-list (users user-id total offset sort
+                                          &optional append)
   "Insert the supporter list USERS of USER-ID in the dedicated buffer.
 TOTAL is the total number of users.
 OFFSET is the offset of the list.
@@ -3337,7 +3337,11 @@ If APPEND is non-nil, insert the list at the end of the buffer."
 
 (defun etcc-display-sup-sentinel (data response user-type display-list-func
                                        &optional append)
-  "Callback for `etcc-display-supporter' and `etcc-display-supporting'."
+  "Callback for `etcc-display-supporter' and `etcc-display-supporting'.
+DATA and RESPONSE are data and response from API.
+USER-TYPE is either 'supporters or 'supporting.
+DISPLAY-LIST-FUNC is the function to be called to display user list.
+If APPEND is non-nil, insert the list at the end of the buffer."
   (let* ((total (assoc-default 'total data))
          (users (assoc-default user-type data))
          (url (etcc/parse-url (request-response-url response)))
@@ -3346,7 +3350,7 @@ If APPEND is non-nil, insert the list at the end of the buffer."
          (user-id (etcc/user-id-from-url base-url))
          (offset (car (assoc-default "offset" query)))
          (sort (car (assoc-default "sort" query))))
-    (funcall display-list-func user-id total users offset sort append)))
+    (funcall display-list-func users user-id total offset sort append)))
 
 (cl-defun etcc-display-supporter-sentinel (&key data response &allow-other-keys)
   (etcc-display-sup-sentinel data response 'supporters
@@ -3453,8 +3457,8 @@ If OTHER-SORT is non-nil, list the supporters in the order of the other key."
   (define-key etcc-supporting-mode-map "p" 'etcc-supporting-previous-user)
   (define-key etcc-supporting-mode-map "q" 'etcc-search-user-quit))
 
-(defun etcc/display-supporting-list (user-id total users offset sort
-                                             &optional append)
+(defun etcc/display-supporting-list (users user-id total offset sort
+                                           &optional append)
   "Insert the supporting user list USERS of USER-ID in the dedicated buffer.
 TOTAL is the total number of users.
 OFFSET is the offset of the list.
