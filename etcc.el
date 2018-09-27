@@ -2555,6 +2555,7 @@ MODE-MAP is a keyap."
   (define-key mode-map "vm" 'etcc-view-movie)
   (define-key mode-map "vs" 'etcc-display-supporter-at)
   (define-key mode-map "vu" 'etcc-view-user)
+  (define-key mode-map "vx" 'etcc-display-my-supporting)
   (define-key mode-map "vU" 'etcc-view-from-url))
 
 (defvar etcc-search-mode-map nil)
@@ -2897,7 +2898,7 @@ Prefix arg LIMIT is the max number of movies to be listed."
 (defun etcc (&optional arg)
   "Search lives.
 Without prefix ARG, search recommend live movies.
-With a prefix ARG, call `etcc-search-lives' and prompt search
+With a prefix ARG, call `etcc-search-live' and prompt search
 type, query, and limit."
   (interactive "P")
   (if arg
@@ -3660,8 +3661,7 @@ BROADCASTER is an `etcc-user' object of broadcaster."
          (movies (assoc-default 'movies data))
          (url (request-response-url response))
          (user-id (etcc/user-id-from-url url)))
-    (let ((buf (get-buffer etcc-user-info-buffer-name))
-          pos) ; XXX
+    (let ((buf (get-buffer etcc-user-info-buffer-name)))
       (set-buffer buf)
       (setq buffer-read-only nil)
       (goto-char (point-max))
