@@ -368,8 +368,8 @@ See `header-line-format' as well."
   :group 'etcc
   :type 'string)
 
-(defcustom etcc-download-hls-default-directory "~/Downloads"
-  "Name of default directory to download HLS."
+(defcustom etcc-download-default-directory "~/Downloads"
+  "Name of default directory to download HLS and movie files."
   :group 'etcc
   :type 'string)
 
@@ -2187,11 +2187,9 @@ The HLS is saved to the file FILE."
             (movie-id (etcc-movie-id etcc-movie))
             (default-filename (concat user-screen-id "_"
                                       movie-id ".mp4")))
-       (list
-        (read-file-name "Download HLS: "
-                        etcc-download-hls-default-directory
-                        default-filename
-                        nil default-filename)))))
+       (list (read-file-name "Download HLS: "
+                             etcc-download-default-directory default-filename
+                             nil default-filename)))))
   (ensure-etcc-buffer
     (if (or (not (file-exists-p file))
             (yes-or-no-p "file exists. overwrite? "))
@@ -2255,11 +2253,9 @@ The movie is saved to the file FILE."
             (movie-id (etcc-movie-id etcc-movie))
             (default-filename (concat "movie_" user-screen-id "_"
                                       movie-id ".mp4")))
-       (list
-        (read-file-name "Download Movie: "
-                        etcc-download-hls-default-directory ; XXX
-                        default-filename
-                        nil default-filename)))))
+       (list (read-file-name "Download Movie: "
+                             etcc-download-default-directory default-filename
+                             nil default-filename)))))
   (ensure-etcc-buffer
     (if (or (not (file-exists-p file))
             (yes-or-no-p "file exists. overwrite? "))
