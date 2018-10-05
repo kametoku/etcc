@@ -311,7 +311,7 @@ The second group matched represents the movie id."
   :group 'etcc
   :type 'string)
 
-(defcustom etcc-comment-string-function 'etcc-comment-string
+(defcustom etcc-comment-string-function #'etcc-comment-string
   "Function to format comment."
   :group 'etcc
   :type 'function)
@@ -358,7 +358,7 @@ See `header-line-format' as well."
   :group 'etcc
   :type 'list)
 
-(defcustom etcc-prompt-function 'etcc-prompt
+(defcustom etcc-prompt-function #'etcc-prompt
   "A function that returns the etcc comment prompt string."
   :group 'etcc
   :type 'function)
@@ -1923,7 +1923,7 @@ The buffer name is defined by `etcc-comment-buffer-name'."
               "人\n"
               (etcc-movie-link movie)
               "\n\n")
-      (let ((etcc-comment-string-function 'etcc-comment-string-simple))
+      (let ((etcc-comment-string-function #'etcc-comment-string-simple))
         (etcc/insert-user-comments nil etcc-buf))
       (goto-char (point-min))
       (run-hooks 'etcc-display-comments-hook)
@@ -2647,7 +2647,7 @@ Called from `etcc/view-movie-list'."
             (let ((etcc-movie (make-etcc-movie-from-alist movie))
                   (etcc-user (make-etcc-user-from-alist broadcaster)))
               (etcc/insert-movie-info etcc-movie etcc-user tags
-                                      'etcc-movie-info-string))))
+                                      #'etcc-movie-info-string))))
         movies))
 
 (defun etcc/view-movie-list (movies type context insert-movies-func)
@@ -2712,7 +2712,7 @@ See `url-parse-query-string' for more details."
          (context (car (assoc-default "context" query))))
     (if context
         (setq context (decode-coding-string context 'utf-8)))
-    (etcc/view-movie-list movies type context 'etcc/insert-movies)
+    (etcc/view-movie-list movies type context #'etcc/insert-movies)
     (message "Searching lives...done - %d movies found" (length movies))))
 
 (defvar etcc-search-type-hist nil)
@@ -2962,8 +2962,8 @@ If COUNT is a negative number, moving forward is performed."
   (or count (setq count 1))
   (let (func his)
     (if (>= count 0)
-	(setq func 'etcc-search-history-previous)
-      (setq func 'etcc-search-history-next)
+	(setq func #'etcc-search-history-previous)
+      (setq func #'etcc-search-history-next)
       (setq count (- count)))
     (setq his (funcall func count))
     (if his
@@ -3176,7 +3176,7 @@ LANG is the search language that was used to search users."
     (setq etcc-search-user-lang lang)
     (setq etcc-search-user-count (length users))
     (switch-to-buffer buf)
-    (etcc/insert-users users 'make-etcc-user-from-alist)
+    (etcc/insert-users users #'make-etcc-user-from-alist)
     (goto-char (point-min))
     (set-buffer-modified-p nil)
     (setq buffer-read-only t)
@@ -3308,7 +3308,7 @@ Otherwise, erase the buffer and insert the list."
                           (offset)
                           (t "0")))
   (save-excursion
-    (etcc/insert-users users 'make-etcc-supporter-user-from-alist))
+    (etcc/insert-users users #'make-etcc-supporter-user-from-alist))
   (set-buffer-modified-p nil)
   (setq buffer-read-only t))
 
@@ -3355,7 +3355,7 @@ If APPEND is non-nil, insert the list at the end of the buffer."
 
 (cl-defun etcc-display-supporter-sentinel (&key data response &allow-other-keys)
   (etcc-display-sup-sentinel data response 'supporters
-                             'etcc/display-supporter-list))
+                             #'etcc/display-supporter-list))
 
 (defvar etcc-display-supporter-hist nil)
 
@@ -3380,7 +3380,7 @@ If SORT is non-nil, list the supporters in the order of ranking."
 (cl-defun etcc-display-supporter-next-sentinel (&key data response
                                                      &allow-other-keys)
   (etcc-display-sup-sentinel data response 'supporters
-                             'etcc/display-supporter-list t))
+                             #'etcc/display-supporter-list t))
 
 (defun etcc-display-supporter-next ()
   "Get the next bulk of supporter list and display it."
@@ -3482,7 +3482,7 @@ If APPEND is non-nil, insert the list at the end of the buffer."
 
 (cl-defun etcc-display-supporting-sentinel (&key data response &allow-other-keys)
   (etcc-display-sup-sentinel data response 'supporting
-                             'etcc/display-supporting-list))
+                             #'etcc/display-supporting-list))
 
 (defvar etcc-display-supporting-hist nil)
 
@@ -3501,7 +3501,7 @@ USER is an `etcc-user' object, user Id, or user screen Id."
 (cl-defun etcc-supporting-next-list-sentinel (&key data response
                                                    &allow-other-keys)
   (etcc-display-sup-sentinel data response 'supporting
-                             'etcc/display-supporting-list t))
+                             #'etcc/display-supporting-list t))
 
 (defun etcc-supporting-next-list ()
   "Get the next bulk of supporting list and display it."
@@ -3652,7 +3652,7 @@ BROADCASTER is an `etcc-user' object of broadcaster."
   (mapc (lambda (movie)
           (let ((etcc-movie (make-etcc-movie-from-alist movie)))
             (etcc/insert-movie-info etcc-movie broadcaster nil
-                                    'etcc-user-movie-info-string)))
+                                    #'etcc-user-movie-info-string)))
         movies))
 
 (cl-defun etcc-get-movies-by-user-sentinel (&key data response
