@@ -3029,7 +3029,7 @@ Prefix arg LIMIT is the max number of movies to be listed."
 Prefix arg LIMIT is the max number of movies to be listed."
   (interactive "P")
   (etcc-search-live etcc-search-type etcc-search-context
-                    (etcc-prefix-numeric-value limit)))
+                    (etcc-prefix-numeric-value limit) t))
 
 (defun etcc-search-view-movie ()
   "Start to view the movie at the current point."
