@@ -31,18 +31,37 @@ https://github.com/kametoku/etcc
 
 ** Edit your ~/.emacs
 1. Configure ETCC with the above values.
-   Write the following lines to your =~/.emacs= file
+   Write the following lines to your =~/.emacs= file (or =~/.emacs.d/init.el=):
    #+BEGIN_SRC emacs-lisp
      (require 'etcc)
      (setq etcc-auth-client-id "ClientID")
      (setq etcc-auth-state "ClientSecret")
-     ;; (add-hook 'etcc-mode-hook 'emojify-mode)
-     ;; (add-hook 'etcc-display-movie-info-hook 'emojify-mode)
-     ;; (add-hook 'etcc-display-user-info-hook 'emojify-mode)
-     ;; (add-hook 'etcc-display-comments-hook 'emojify-mode)
-     ;; (add-hook 'etcc-search-mode-hook 'emojify-mode)
-     ;; (add-hook 'etcc-search-user-mode-hook 'emojify-mode)
-     ;; (skk-wrap-newline-command etcc-post-comment)
+     ;; (if (fboundp 'skk-wrap-newline-command)
+     ;;     (skk-wrap-newline-command etcc-post-comment)) ; for SKK uesr
+     ;; (dolist (hook '(etcc-mode-hook
+     ;;                 etcc-display-movie-info-hook
+     ;;                 etcc-display-user-info-hook
+     ;;                 etcc-display-comments-hook
+     ;;                 etcc-supporter-mode-hook
+     ;;                 etcc-supporting-mode-hook
+     ;;                 etcc-search-mode-hook
+     ;;                 etcc-search-user-mode-hook))
+     ;;   (add-hook hook 'emojify-mode))
+     ;; (set-face-attribute 'etcc-live-face nil
+     ;;                     :inherit 'bold
+     ;;                     :foreground "gray93" :background "red3"
+     ;;                     :height 0.87
+     ;;                     :box '(:line-width 1 :style released-button))
+     ;; (set-face-attribute 'etcc-recorded-face nil
+     ;;                     :inherit 'bold
+     ;;                     :foreground "gray93" :background "#0abbcc"
+     ;;                     :height 0.87
+     ;;                     :box '(:line-width 1 :style released-button))
+     ;; (set-face-attribute 'etcc-protected-face nil
+     ;;                     :inherit 'bold
+     ;;                     :foreground "gray93" :background "#88aa00"
+     ;;                     :height 0.87
+     ;;                     :box '(:line-width 1 :style released-button))
    #+END_SRC
 
 * Usage
