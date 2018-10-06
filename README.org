@@ -74,7 +74,10 @@ https://github.com/kametoku/etcc
 ** Search users and view user info
 - type =M-x etcc-search-user= to search user with words.
 - type =M-x etcc-view-user= followed by user's id to view the user
-  info with ther user's movie list
+  info with their user's movie list
+
+** View your supporting users
+- type =M-x etcc-display-my-supporting= to list your supporing users.
 
 * Screen Shots
 [[./etcc-screenshot.png]]
