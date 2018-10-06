@@ -2845,7 +2845,9 @@ TYPE specifies the search type, \"tag\", \"word\", or \"category\".
 DEFAULT is a default context."
   (if (symbolp type)
       (setq type (symbol-name type)))
-  (cond ((member type '("tag" "word"))
+  (cond ((member type '("new" "recommend"))
+         nil)
+        ((member type '("tag" "word"))
          (let* ((fmt (if default
                          "Search live with %s (default %s): "
                        "Search live with %s: "))
