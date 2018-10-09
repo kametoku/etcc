@@ -1297,7 +1297,7 @@ If NAME-ONLY is non-nil, return the string without user id."
      (etcc/fontify-string (format-time-string "%H:%M:%S " created)
                           'etcc-time-string-face)
      (etcc/user-string user)
-     "\n         " (replace-regexp-in-string "\\\\n" "\n         " message))))
+     "\n         " (replace-regexp-in-string "\n" "\n         " message))))
 
 (defun etcc/insert-comment (etcc-comment &optional no-highlight)
   "Insert the comment of ETCC-COMMENT into the current point.
@@ -1905,8 +1905,7 @@ Otherwise, display small version of the thumbnail."
          (user (etcc-comment-from-user etcc-comment))
          (created (etcc-comment-created etcc-comment)))
     (concat
-     (etcc/user-string user t) "  "
-     (replace-regexp-in-string "\\\\n" "\n" message))))
+     (etcc/user-string user t) "  " message)))
 
 (defun etcc-display-comments ()
   "Display all the comments of the movie in a dedicated buffer.
