@@ -271,7 +271,7 @@ The second group matched represents the movie id."
   :type 'string)
 
 (defcustom etcc-movie-url-format
-  "http://dl01.twitcasting.tv/%s/download/%s?dl=1"
+  "http://dl02.twitcasting.tv/%s/download/%s?dl=1"
   "URL format string of recorded movie URL."
   :group 'etcc
   :type 'string)
