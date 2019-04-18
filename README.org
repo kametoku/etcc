@@ -13,7 +13,7 @@
 
 ** External Program Requirement
 - ffmpeg --- to download recorded movie file and HLS
-- mplayer --- to play HLS
+- mpv --- to play HLS
 
 ** Download and put etcc.el to a directory in `load-path'.
 The latest version of =etcc.el= is available from:

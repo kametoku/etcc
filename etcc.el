@@ -34,7 +34,7 @@
 
 ;; External Program Requirement:
 ;; - ffmpeg --- to download recorded movie file and HLS
-;; - mplayer --- to play HLS
+;; - mpv --- to play HLS
 
 ;; Configure:
 ;; 1. Register your App from the following developer page with the
@@ -363,8 +363,8 @@ See `header-line-format' as well."
   :group 'etcc
   :type 'function)
 
-(defcustom etcc-mplayer-program "mplayer"
-  "Program name of mplayer to play HLS."
+(defcustom etcc-mpv-program "mpv"
+  "Program name of mpv to play HLS."
   :group 'etcc
   :type 'string)
 
@@ -2133,12 +2133,12 @@ instead of killing it."
 (defun etcc/hls-play (url)
   "Play the HLS movie at URL."
   (let* ((buf (get-buffer-create (format "*ETCC-hls-play:%s*" url)))
-         (proc (start-process "mplayer" buf etcc-mplayer-program
-                              "-quiet" url)))
+         (proc (start-process "mpv" buf etcc-mpv-program
+                              "--quiet" url)))
     proc))
 
 (defun etcc-play-hls (&optional arg)
-  "Start mplayer to play the HTTP live streaming of the current movie.
+  "Start mpv to play the HTTP live streaming of the current movie.
 If ARG is non-nil, start a web browser to play HLS.
 If the HLS is not available but the movie is recorded,
 start to play the recoreded movie, instead."
@@ -2159,7 +2159,7 @@ start to play the recoreded movie, instead."
                (message "starting HLS player... done"))))))
 
 (defun etcc-stop-hls ()
-  "Stop mplayer."
+  "Stop mpv."
   (interactive)
   (ensure-etcc-buffer
     (if (not (process-live-p etcc-play-hls-proc))
